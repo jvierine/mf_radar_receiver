@@ -1,0 +1,139 @@
+import argparse
+import digital_rf as drf
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+import mf_conf as mc
+
+parser = argparse.ArgumentParser(
+    description="Generate plots for DigitalRF data for N days before today."
+)
+
+parser.add_argument(
+    "-d", "--days",
+    type=int,
+    default=0,
+    help="How many days before yesterday to process (default: 0)."
+)
+args = parser.parse_args()
+
+days_before = args.days
+
+# ------------------------
+# Parameters
+# ------------------------
+ch = "ch1"                 # Channel
+n_t = 24*60               # Number of time bins (1 per minute)
+n_rg = 1000                # Number of range bins
+rgs = np.arange(n_rg) * 1.5  # Range vector in km
+
+# ------------------------
+# Time bounds
+# ------------------------
+t0, t1 = mc.get_prev_day_bounds()  # Unix timestamps in seconds
+t0=t0-args.days*24*60*60
+t1=t1-args.days*24*60*60
+
+print(f"Processing data from {t0} to {t1}")
+
+# ------------------------
+# DigitalRF metadata reader
+# ------------------------
+dmt = drf.DigitalMetadataReader(mc.xc_dir)
+
+# ------------------------
+# Initialize data array
+# ------------------------
+S = np.zeros([n_t, n_rg], dtype=np.float64)
+tvec = []
+
+# ------------------------
+# Loop over time
+# ------------------------
+for i in range(n_t):
+    print(f"Processing {i+1}/{n_t} minutes")
+    
+    start_us = int((t0 + i*60) * 1e6)
+    end_us = int(start_us + 60 * 1e6)
+    
+    dd = dmt.read(start_us, end_us)
+    
+    tvec.append(np.datetime64(int(t0 + i*60), 's'))
+    
+    nk = 0
+    for k in dd.keys():
+        rdi = dd[k]["rdi1"]
+        S[i, :] += np.max(np.abs(rdi)**2.0, axis=0)
+        nk += 1.0
+    
+    # Avoid divide by zero
+    if nk > 0:
+        S[i, :] /= nk
+    else:
+        S[i, :] = np.nan
+
+tvec = np.array(tvec)
+
+# ------------------------
+# Plotting (journal-quality)
+# ------------------------
+plt.style.use("default")
+plt.rcParams.update({
+    "font.size": 12,
+    "font.family": "serif",
+    "figure.figsize": (10, 4),
+    "axes.labelsize": 13,
+    "axes.titlesize": 14,
+    "xtick.labelsize": 11,
+    "ytick.labelsize": 11,
+    "axes.linewidth": 1.2,
+})
+
+fig, ax = plt.subplots()
+dB=10.0 * np.log10(S.T)
+pcm = ax.pcolormesh(
+    tvec,
+    rgs,
+    dB,
+    cmap="plasma",
+    shading="auto",
+    vmin=np.nanpercentile(dB, 10),
+    vmax=np.nanpercentile(dB, 99),
+)
+
+# Labels
+ax.set_ylabel("Range (km)")
+ax.set_xlabel("Time (UTC)")
+
+# Colorbar
+cbar = fig.colorbar(pcm, ax=ax, pad=0.02)
+cbar.set_label("Received Power (dB)")
+import datetime
+date_str = datetime.datetime.utcfromtimestamp(t0).strftime("%Y-%m-%d")
+ax.set_title(f"Range-Time Intensity for {date_str}")
+# Time axis formatting
+ax.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+ax.xaxis.set_major_locator(mdates.HourLocator(interval=2))
+fig.autofmt_xdate(rotation=0, ha="center")
+
+# Tight layout
+fig.tight_layout()
+
+# ------------------------
+# Save high-resolution PNG
+# ------------------------
+fig.savefig("range_time_intensity.png", 
+            dpi=600, 
+            bbox_inches="tight", 
+            transparent=False)
+
+
+ax.set_ylim([50,200])
+
+fig.savefig("range_time_intensity2.png", 
+            dpi=600, 
+            bbox_inches="tight", 
+            transparent=False)
+fig.tight_layout()
+
+plt.show()
