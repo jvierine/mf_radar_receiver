@@ -12,11 +12,11 @@ print(d.get_channels())
 # bounds for data
 b=d.get_bounds("ch1")
 print(b)
-
-z1=d.read_vector_c81d(b[1]-1000000,40000,"ch1")
-z2=d.read_vector_c81d(b[1]-1000000,40000,"ch2")
-z3=d.read_vector_c81d(b[1]-1000000,40000,"ch3")
-z4=d.read_vector_c81d(b[1]-1000000,40000,"ch4")
+nsamp=200000
+z1=d.read_vector_c81d(b[1]-1000000,nsamp,"ch1")
+z2=d.read_vector_c81d(b[1]-1000000,nsamp,"ch2")
+z3=d.read_vector_c81d(b[1]-1000000,nsamp,"ch3")
+z4=d.read_vector_c81d(b[1]-1000000,nsamp,"ch4")
 plt.figure(figsize=(12,12))
 ylim=1e3
 plt.subplot(221)

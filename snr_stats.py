@@ -6,7 +6,9 @@ import mf_conf as mc
 dmt = drf.DigitalMetadataReader(mc.xc_dir)
 b=dmt.get_bounds()
 #print(b)
-dd=dmt.read(b[0],b[1])
+# tbd: don't read all at once.
+# now only plotting last 60 seconds of data.
+dd=dmt.read(b[1]-600*1000000,b[1])
 for k in dd.keys():
     RTI1=n.abs(dd[k]["rti1"])**2.0
     RTI2=n.abs(dd[k]["rti2"])**2.0

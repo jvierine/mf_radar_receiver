@@ -1,0 +1,378 @@
+/home/radar/drf/lib/python3.12/site-packages/digital_rf/digital_rf_hdf5.py:1588: FutureWarning: The read_vector_c81d method is deprecated and will be removed in digital_rf version 3. Use read_vector_1d instead and append `.astype('c8', casting='unsafe', copy=False)` if a strict return dtype of complex64 is desired.
+  warnings.warn(
+ERROR:root:channel ch1 block 1780215294000000: Requested 10000 samples, but got 1100
+ERROR:root:block 1780215294000000 failed, skipping
+ERROR:root:channel ch1 block 1780215296000000: No data found with start_sample 1780215296008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215296000000 failed, skipping
+ERROR:root:channel ch1 block 1780215298000000: No data found with start_sample 1780215298008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215298000000 failed, skipping
+ERROR:root:channel ch1 block 1780215300000000: No data found with start_sample 1780215300008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215300000000 failed, skipping
+ERROR:root:channel ch1 block 1780215302000000: No data found with start_sample 1780215302008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215302000000 failed, skipping
+ERROR:root:channel ch1 block 1780215304000000: No data found with start_sample 1780215304008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215304000000 failed, skipping
+ERROR:root:channel ch1 block 1780215306000000: No data found with start_sample 1780215306008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215306000000 failed, skipping
+ERROR:root:channel ch1 block 1780215308000000: No data found with start_sample 1780215308008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215308000000 failed, skipping
+ERROR:root:channel ch1 block 1780215310000000: No data found with start_sample 1780215310008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215310000000 failed, skipping
+ERROR:root:channel ch1 block 1780215312000000: No data found with start_sample 1780215312008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215312000000 failed, skipping
+ERROR:root:channel ch1 block 1780215314000000: No data found with start_sample 1780215314008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215314000000 failed, skipping
+ERROR:root:channel ch1 block 1780215316000000: No data found with start_sample 1780215316008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215316000000 failed, skipping
+ERROR:root:channel ch1 block 1780215318000000: No data found with start_sample 1780215318008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215318000000 failed, skipping
+ERROR:root:channel ch1 block 1780215320000000: No data found with start_sample 1780215320008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215320000000 failed, skipping
+ERROR:root:channel ch1 block 1780215322000000: No data found with start_sample 1780215322008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215322000000 failed, skipping
+ERROR:root:channel ch1 block 1780215324000000: No data found with start_sample 1780215324008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215324000000 failed, skipping
+ERROR:root:channel ch1 block 1780215326000000: No data found with start_sample 1780215326008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215326000000 failed, skipping
+ERROR:root:channel ch1 block 1780215328000000: No data found with start_sample 1780215328008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215328000000 failed, skipping
+ERROR:root:channel ch1 block 1780215330000000: No data found with start_sample 1780215330008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215330000000 failed, skipping
+ERROR:root:channel ch1 block 1780215332000000: No data found with start_sample 1780215332008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215332000000 failed, skipping
+ERROR:root:channel ch1 block 1780215334000000: No data found with start_sample 1780215334008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215334000000 failed, skipping
+ERROR:root:channel ch1 block 1780215336000000: No data found with start_sample 1780215336008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215336000000 failed, skipping
+ERROR:root:channel ch1 block 1780215338000000: No data found with start_sample 1780215338008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215338000000 failed, skipping
+ERROR:root:channel ch1 block 1780215340000000: No data found with start_sample 1780215340008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215340000000 failed, skipping
+ERROR:root:channel ch1 block 1780215342000000: No data found with start_sample 1780215342008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215342000000 failed, skipping
+ERROR:root:channel ch1 block 1780215344000000: No data found with start_sample 1780215344008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215344000000 failed, skipping
+ERROR:root:channel ch1 block 1780215346000000: No data found with start_sample 1780215346008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215346000000 failed, skipping
+ERROR:root:channel ch1 block 1780215348000000: No data found with start_sample 1780215348008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215348000000 failed, skipping
+ERROR:root:channel ch1 block 1780215350000000: No data found with start_sample 1780215350008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215350000000 failed, skipping
+ERROR:root:channel ch1 block 1780215352000000: No data found with start_sample 1780215352008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215352000000 failed, skipping
+ERROR:root:channel ch1 block 1780215354000000: No data found with start_sample 1780215354008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215354000000 failed, skipping
+ERROR:root:channel ch1 block 1780215356000000: No data found with start_sample 1780215356008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215356000000 failed, skipping
+ERROR:root:channel ch1 block 1780215358000000: No data found with start_sample 1780215358008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215358000000 failed, skipping
+ERROR:root:channel ch1 block 1780215360000000: No data found with start_sample 1780215360008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215360000000 failed, skipping
+ERROR:root:channel ch1 block 1780215362000000: No data found with start_sample 1780215362008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215362000000 failed, skipping
+ERROR:root:channel ch1 block 1780215364000000: No data found with start_sample 1780215364008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215364000000 failed, skipping
+ERROR:root:channel ch1 block 1780215366000000: No data found with start_sample 1780215366008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215366000000 failed, skipping
+ERROR:root:channel ch1 block 1780215368000000: No data found with start_sample 1780215368008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215368000000 failed, skipping
+ERROR:root:channel ch1 block 1780215370000000: No data found with start_sample 1780215370008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215370000000 failed, skipping
+ERROR:root:channel ch1 block 1780215372000000: No data found with start_sample 1780215372008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215372000000 failed, skipping
+ERROR:root:channel ch1 block 1780215374000000: No data found with start_sample 1780215374008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215374000000 failed, skipping
+ERROR:root:channel ch1 block 1780215376000000: No data found with start_sample 1780215376008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215376000000 failed, skipping
+ERROR:root:channel ch1 block 1780215378000000: No data found with start_sample 1780215378008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215378000000 failed, skipping
+ERROR:root:channel ch1 block 1780215380000000: No data found with start_sample 1780215380008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215380000000 failed, skipping
+ERROR:root:channel ch1 block 1780215382000000: No data found with start_sample 1780215382008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215382000000 failed, skipping
+ERROR:root:channel ch1 block 1780215384000000: No data found with start_sample 1780215384008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215384000000 failed, skipping
+ERROR:root:channel ch1 block 1780215386000000: No data found with start_sample 1780215386008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215386000000 failed, skipping
+ERROR:root:channel ch1 block 1780215388000000: No data found with start_sample 1780215388008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215388000000 failed, skipping
+ERROR:root:channel ch1 block 1780215390000000: No data found with start_sample 1780215390008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215390000000 failed, skipping
+ERROR:root:channel ch1 block 1780215392000000: No data found with start_sample 1780215392008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215392000000 failed, skipping
+ERROR:root:channel ch1 block 1780215394000000: No data found with start_sample 1780215394008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215394000000 failed, skipping
+ERROR:root:channel ch1 block 1780215396000000: No data found with start_sample 1780215396008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215396000000 failed, skipping
+ERROR:root:channel ch1 block 1780215398000000: No data found with start_sample 1780215398008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215398000000 failed, skipping
+ERROR:root:channel ch1 block 1780215400000000: No data found with start_sample 1780215400008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215400000000 failed, skipping
+ERROR:root:channel ch1 block 1780215402000000: No data found with start_sample 1780215402008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215402000000 failed, skipping
+ERROR:root:channel ch1 block 1780215404000000: No data found with start_sample 1780215404008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215404000000 failed, skipping
+ERROR:root:channel ch1 block 1780215406000000: No data found with start_sample 1780215406008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215406000000 failed, skipping
+ERROR:root:channel ch1 block 1780215408000000: No data found with start_sample 1780215408008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215408000000 failed, skipping
+ERROR:root:channel ch1 block 1780215410000000: No data found with start_sample 1780215410008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215410000000 failed, skipping
+ERROR:root:channel ch1 block 1780215412000000: No data found with start_sample 1780215412008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215412000000 failed, skipping
+ERROR:root:channel ch1 block 1780215414000000: No data found with start_sample 1780215414008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215414000000 failed, skipping
+ERROR:root:channel ch1 block 1780215416000000: No data found with start_sample 1780215416008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215416000000 failed, skipping
+ERROR:root:channel ch1 block 1780215418000000: No data found with start_sample 1780215418008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215418000000 failed, skipping
+ERROR:root:channel ch1 block 1780215420000000: No data found with start_sample 1780215420008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215420000000 failed, skipping
+ERROR:root:channel ch1 block 1780215422000000: No data found with start_sample 1780215422008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215422000000 failed, skipping
+ERROR:root:channel ch1 block 1780215424000000: No data found with start_sample 1780215424008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215424000000 failed, skipping
+ERROR:root:channel ch1 block 1780215426000000: No data found with start_sample 1780215426008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215426000000 failed, skipping
+ERROR:root:channel ch1 block 1780215428000000: No data found with start_sample 1780215428008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215428000000 failed, skipping
+ERROR:root:channel ch1 block 1780215430000000: No data found with start_sample 1780215430008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215430000000 failed, skipping
+ERROR:root:channel ch1 block 1780215432000000: No data found with start_sample 1780215432008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215432000000 failed, skipping
+ERROR:root:channel ch1 block 1780215434000000: No data found with start_sample 1780215434008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215434000000 failed, skipping
+ERROR:root:channel ch1 block 1780215436000000: No data found with start_sample 1780215436008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215436000000 failed, skipping
+ERROR:root:channel ch1 block 1780215438000000: No data found with start_sample 1780215438008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215438000000 failed, skipping
+ERROR:root:channel ch1 block 1780215440000000: No data found with start_sample 1780215440008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215440000000 failed, skipping
+ERROR:root:channel ch1 block 1780215442000000: No data found with start_sample 1780215442008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215442000000 failed, skipping
+ERROR:root:channel ch1 block 1780215444000000: No data found with start_sample 1780215444008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215444000000 failed, skipping
+ERROR:root:channel ch1 block 1780215446000000: No data found with start_sample 1780215446008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215446000000 failed, skipping
+ERROR:root:channel ch1 block 1780215448000000: No data found with start_sample 1780215448008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215448000000 failed, skipping
+ERROR:root:channel ch1 block 1780215450000000: No data found with start_sample 1780215450008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215450000000 failed, skipping
+ERROR:root:channel ch1 block 1780215452000000: No data found with start_sample 1780215452008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215452000000 failed, skipping
+ERROR:root:channel ch1 block 1780215454000000: No data found with start_sample 1780215454008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215454000000 failed, skipping
+ERROR:root:channel ch1 block 1780215456000000: No data found with start_sample 1780215456008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215456000000 failed, skipping
+ERROR:root:channel ch1 block 1780215458000000: No data found with start_sample 1780215458008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215458000000 failed, skipping
+ERROR:root:channel ch1 block 1780215460000000: No data found with start_sample 1780215460008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215460000000 failed, skipping
+ERROR:root:channel ch1 block 1780215462000000: No data found with start_sample 1780215462008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215462000000 failed, skipping
+ERROR:root:channel ch1 block 1780215464000000: No data found with start_sample 1780215464008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215464000000 failed, skipping
+ERROR:root:channel ch1 block 1780215466000000: No data found with start_sample 1780215466008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215466000000 failed, skipping
+ERROR:root:channel ch1 block 1780215468000000: No data found with start_sample 1780215468008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215468000000 failed, skipping
+ERROR:root:channel ch1 block 1780215470000000: No data found with start_sample 1780215470008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215470000000 failed, skipping
+ERROR:root:channel ch1 block 1780215472000000: No data found with start_sample 1780215472008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215472000000 failed, skipping
+ERROR:root:channel ch1 block 1780215474000000: No data found with start_sample 1780215474008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215474000000 failed, skipping
+ERROR:root:channel ch1 block 1780215476000000: No data found with start_sample 1780215476008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215476000000 failed, skipping
+ERROR:root:channel ch1 block 1780215478000000: No data found with start_sample 1780215478008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215478000000 failed, skipping
+ERROR:root:channel ch1 block 1780215480000000: No data found with start_sample 1780215480008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215480000000 failed, skipping
+ERROR:root:channel ch1 block 1780215482000000: No data found with start_sample 1780215482008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215482000000 failed, skipping
+ERROR:root:channel ch1 block 1780215484000000: No data found with start_sample 1780215484008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215484000000 failed, skipping
+ERROR:root:channel ch1 block 1780215486000000: No data found with start_sample 1780215486008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215486000000 failed, skipping
+ERROR:root:channel ch1 block 1780215488000000: No data found with start_sample 1780215488008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215488000000 failed, skipping
+ERROR:root:channel ch1 block 1780215490000000: No data found with start_sample 1780215490008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215490000000 failed, skipping
+ERROR:root:channel ch1 block 1780215492000000: No data found with start_sample 1780215492008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215492000000 failed, skipping
+ERROR:root:channel ch1 block 1780215494000000: No data found with start_sample 1780215494008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215494000000 failed, skipping
+ERROR:root:channel ch1 block 1780215496000000: No data found with start_sample 1780215496008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215496000000 failed, skipping
+ERROR:root:channel ch1 block 1780215498000000: No data found with start_sample 1780215498008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215498000000 failed, skipping
+ERROR:root:channel ch1 block 1780215500000000: No data found with start_sample 1780215500008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215500000000 failed, skipping
+ERROR:root:channel ch1 block 1780215502000000: No data found with start_sample 1780215502008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215502000000 failed, skipping
+ERROR:root:channel ch1 block 1780215504000000: No data found with start_sample 1780215504008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215504000000 failed, skipping
+ERROR:root:channel ch1 block 1780215506000000: No data found with start_sample 1780215506008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215506000000 failed, skipping
+ERROR:root:channel ch1 block 1780215508000000: No data found with start_sample 1780215508008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215508000000 failed, skipping
+ERROR:root:channel ch1 block 1780215510000000: No data found with start_sample 1780215510008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215510000000 failed, skipping
+ERROR:root:channel ch1 block 1780215512000000: No data found with start_sample 1780215512008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215512000000 failed, skipping
+ERROR:root:channel ch1 block 1780215514000000: No data found with start_sample 1780215514008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215514000000 failed, skipping
+ERROR:root:channel ch1 block 1780215516000000: No data found with start_sample 1780215516008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215516000000 failed, skipping
+ERROR:root:channel ch1 block 1780215518000000: No data found with start_sample 1780215518008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215518000000 failed, skipping
+ERROR:root:channel ch1 block 1780215520000000: No data found with start_sample 1780215520008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215520000000 failed, skipping
+ERROR:root:channel ch1 block 1780215522000000: No data found with start_sample 1780215522008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215522000000 failed, skipping
+ERROR:root:channel ch1 block 1780215592000000: Requested 10000 samples, but got 1100
+ERROR:root:block 1780215592000000 failed, skipping
+ERROR:root:channel ch1 block 1780215594000000: No data found with start_sample 1780215594008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215594000000 failed, skipping
+ERROR:root:channel ch1 block 1780215596000000: No data found with start_sample 1780215596008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215596000000 failed, skipping
+ERROR:root:channel ch1 block 1780215598000000: No data found with start_sample 1780215598008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215598000000 failed, skipping
+ERROR:root:channel ch1 block 1780215600000000: No data found with start_sample 1780215600008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215600000000 failed, skipping
+ERROR:root:channel ch1 block 1780215602000000: No data found with start_sample 1780215602008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215602000000 failed, skipping
+ERROR:root:channel ch1 block 1780215604000000: No data found with start_sample 1780215604008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215604000000 failed, skipping
+ERROR:root:channel ch1 block 1780215606000000: No data found with start_sample 1780215606008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215606000000 failed, skipping
+ERROR:root:channel ch1 block 1780215608000000: No data found with start_sample 1780215608008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215608000000 failed, skipping
+ERROR:root:channel ch1 block 1780215610000000: No data found with start_sample 1780215610008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215610000000 failed, skipping
+ERROR:root:channel ch1 block 1780215612000000: No data found with start_sample 1780215612008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215612000000 failed, skipping
+ERROR:root:channel ch1 block 1780215614000000: No data found with start_sample 1780215614008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215614000000 failed, skipping
+ERROR:root:channel ch1 block 1780215616000000: No data found with start_sample 1780215616008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215616000000 failed, skipping
+ERROR:root:channel ch1 block 1780215618000000: No data found with start_sample 1780215618008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215618000000 failed, skipping
+ERROR:root:channel ch1 block 1780215620000000: No data found with start_sample 1780215620008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215620000000 failed, skipping
+ERROR:root:channel ch1 block 1780215622000000: No data found with start_sample 1780215622008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215622000000 failed, skipping
+ERROR:root:channel ch1 block 1780215624000000: No data found with start_sample 1780215624008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215624000000 failed, skipping
+ERROR:root:channel ch1 block 1780215626000000: No data found with start_sample 1780215626008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215626000000 failed, skipping
+ERROR:root:channel ch1 block 1780215628000000: No data found with start_sample 1780215628008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215628000000 failed, skipping
+ERROR:root:channel ch1 block 1780215630000000: No data found with start_sample 1780215630008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215630000000 failed, skipping
+ERROR:root:channel ch1 block 1780215632000000: No data found with start_sample 1780215632008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215632000000 failed, skipping
+ERROR:root:channel ch1 block 1780215634000000: No data found with start_sample 1780215634008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215634000000 failed, skipping
+ERROR:root:channel ch1 block 1780215636000000: No data found with start_sample 1780215636008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215636000000 failed, skipping
+ERROR:root:channel ch1 block 1780215638000000: No data found with start_sample 1780215638008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215638000000 failed, skipping
+ERROR:root:channel ch1 block 1780215640000000: No data found with start_sample 1780215640008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215640000000 failed, skipping
+ERROR:root:channel ch1 block 1780215642000000: No data found with start_sample 1780215642008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215642000000 failed, skipping
+ERROR:root:channel ch1 block 1780215644000000: No data found with start_sample 1780215644008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215644000000 failed, skipping
+ERROR:root:channel ch1 block 1780215646000000: No data found with start_sample 1780215646008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215646000000 failed, skipping
+ERROR:root:channel ch1 block 1780215648000000: No data found with start_sample 1780215648008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215648000000 failed, skipping
+ERROR:root:channel ch1 block 1780215650000000: No data found with start_sample 1780215650008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215650000000 failed, skipping
+ERROR:root:channel ch1 block 1780215652000000: No data found with start_sample 1780215652008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215652000000 failed, skipping
+ERROR:root:channel ch1 block 1780215654000000: No data found with start_sample 1780215654008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215654000000 failed, skipping
+ERROR:root:channel ch1 block 1780215656000000: No data found with start_sample 1780215656008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215656000000 failed, skipping
+ERROR:root:channel ch1 block 1780215658000000: No data found with start_sample 1780215658008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215658000000 failed, skipping
+ERROR:root:channel ch1 block 1780215660000000: No data found with start_sample 1780215660008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215660000000 failed, skipping
+ERROR:root:channel ch1 block 1780215662000000: No data found with start_sample 1780215662008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215662000000 failed, skipping
+ERROR:root:channel ch1 block 1780215664000000: No data found with start_sample 1780215664008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215664000000 failed, skipping
+ERROR:root:channel ch1 block 1780215666000000: No data found with start_sample 1780215666008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215666000000 failed, skipping
+ERROR:root:channel ch1 block 1780215668000000: No data found with start_sample 1780215668008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215668000000 failed, skipping
+ERROR:root:channel ch1 block 1780215670000000: No data found with start_sample 1780215670008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215670000000 failed, skipping
+ERROR:root:channel ch1 block 1780215672000000: No data found with start_sample 1780215672008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215672000000 failed, skipping
+ERROR:root:channel ch1 block 1780215674000000: No data found with start_sample 1780215674008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215674000000 failed, skipping
+ERROR:root:channel ch1 block 1780215676000000: No data found with start_sample 1780215676008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215676000000 failed, skipping
+ERROR:root:channel ch1 block 1780215678000000: No data found with start_sample 1780215678008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215678000000 failed, skipping
+ERROR:root:channel ch1 block 1780215680000000: No data found with start_sample 1780215680008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215680000000 failed, skipping
+ERROR:root:channel ch1 block 1780215682000000: No data found with start_sample 1780215682008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215682000000 failed, skipping
+ERROR:root:channel ch1 block 1780215684000000: No data found with start_sample 1780215684008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215684000000 failed, skipping
+ERROR:root:channel ch1 block 1780215686000000: No data found with start_sample 1780215686008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215686000000 failed, skipping
+ERROR:root:channel ch1 block 1780215688000000: No data found with start_sample 1780215688008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215688000000 failed, skipping
+ERROR:root:channel ch1 block 1780215690000000: No data found with start_sample 1780215690008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215690000000 failed, skipping
+ERROR:root:channel ch1 block 1780215692000000: No data found with start_sample 1780215692008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215692000000 failed, skipping
+ERROR:root:channel ch1 block 1780215694000000: No data found with start_sample 1780215694008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215694000000 failed, skipping
+ERROR:root:channel ch1 block 1780215696000000: No data found with start_sample 1780215696008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215696000000 failed, skipping
+ERROR:root:channel ch1 block 1780215698000000: No data found with start_sample 1780215698008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215698000000 failed, skipping
+ERROR:root:channel ch1 block 1780215700000000: No data found with start_sample 1780215700008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215700000000 failed, skipping
+ERROR:root:channel ch1 block 1780215702000000: No data found with start_sample 1780215702008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215702000000 failed, skipping
+ERROR:root:channel ch1 block 1780215704000000: No data found with start_sample 1780215704008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215704000000 failed, skipping
+ERROR:root:channel ch1 block 1780215706000000: No data found with start_sample 1780215706008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215706000000 failed, skipping
+ERROR:root:channel ch1 block 1780215708000000: No data found with start_sample 1780215708008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215708000000 failed, skipping
+ERROR:root:channel ch1 block 1780215710000000: No data found with start_sample 1780215710008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215710000000 failed, skipping
+ERROR:root:channel ch1 block 1780215712000000: No data found with start_sample 1780215712008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215712000000 failed, skipping
+ERROR:root:channel ch1 block 1780215714000000: No data found with start_sample 1780215714008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215714000000 failed, skipping
+ERROR:root:channel ch1 block 1780215716000000: No data found with start_sample 1780215716008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215716000000 failed, skipping
+ERROR:root:channel ch1 block 1780215718000000: No data found with start_sample 1780215718008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215718000000 failed, skipping
+ERROR:root:channel ch1 block 1780215720000000: No data found with start_sample 1780215720008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215720000000 failed, skipping
+ERROR:root:channel ch1 block 1780215722000000: No data found with start_sample 1780215722008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215722000000 failed, skipping
+ERROR:root:channel ch1 block 1780215724000000: No data found with start_sample 1780215724008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215724000000 failed, skipping
+ERROR:root:channel ch1 block 1780215726000000: No data found with start_sample 1780215726008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215726000000 failed, skipping
+ERROR:root:channel ch1 block 1780215728000000: No data found with start_sample 1780215728008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215728000000 failed, skipping
+ERROR:root:channel ch1 block 1780215730000000: No data found with start_sample 1780215730008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215730000000 failed, skipping
+ERROR:root:channel ch1 block 1780215732000000: No data found with start_sample 1780215732008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215732000000 failed, skipping
+ERROR:root:channel ch1 block 1780215734000000: No data found with start_sample 1780215734008900 and vector_length 10000 with channel ch1
+ERROR:root:block 1780215734000000 failed, skipping
+ERROR:root:channel ch3 block 1780215736000000: No data found with start_sample 1780215736008900 and vector_length 10000 with channel ch3
+ERROR:root:block 1780215736000000 failed, skipping

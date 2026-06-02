@@ -12,7 +12,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "-d", "--days",
     type=int,
-    default=0,
+    default=154,
     help="How many days before yesterday to process (default: 0)."
 )
 args = parser.parse_args()
@@ -28,6 +28,11 @@ n_rg = 1000                # Number of range bins
 rgs = np.arange(n_rg) * 1.5  # Range vector in km
 
 # ------------------------
+# DigitalRF metadata reader
+# ------------------------
+dmt = drf.DigitalMetadataReader(mc.xc_dir)
+
+# ------------------------
 # Time bounds
 # ------------------------
 t0, t1 = mc.get_prev_day_bounds()  # Unix timestamps in seconds
@@ -36,10 +41,6 @@ t1=t1-args.days*24*60*60
 
 print(f"Processing data from {t0} to {t1}")
 
-# ------------------------
-# DigitalRF metadata reader
-# ------------------------
-dmt = drf.DigitalMetadataReader(mc.xc_dir)
 
 # ------------------------
 # Initialize data array
@@ -62,8 +63,8 @@ for i in range(n_t):
     
     nk = 0
     for k in dd.keys():
-        rdi = dd[k]["rdi1"]
-        S[i, :] += np.max(np.abs(rdi)**2.0, axis=0)
+        rdi = np.abs(dd[k]["rdi1"])**2.0+np.abs(dd[k]["rdi2"])**2.0+np.abs(dd[k]["rdi3"])**2.0+np.abs(dd[k]["rdi4"])**2.0
+        S[i, :] += np.max(rdi, axis=0)
         nk += 1.0
     
     # Avoid divide by zero
@@ -122,7 +123,7 @@ fig.tight_layout()
 # ------------------------
 # Save high-resolution PNG
 # ------------------------
-fig.savefig("range_time_intensity.png", 
+fig.savefig("images/range_time_intensity.png", 
             dpi=600, 
             bbox_inches="tight", 
             transparent=False)
@@ -130,7 +131,7 @@ fig.savefig("range_time_intensity.png",
 
 ax.set_ylim([50,200])
 
-fig.savefig("range_time_intensity2.png", 
+fig.savefig("images/range_time_intensity2.png", 
             dpi=600, 
             bbox_inches="tight", 
             transparent=False)

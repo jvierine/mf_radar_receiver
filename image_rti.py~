@@ -1,0 +1,70 @@
+import digital_rf as drf
+import numpy as n
+import matplotlib.pyplot as plt
+import mf_conf as mc
+
+from itertools import combinations
+
+def channel_pairs(ch=["ch1","ch2","ch3","ch4"]):
+    chp=[]
+    n_ch=len(ch)
+    for i in range(n_ch):
+        chp.append([i,i])
+    idx=n.arange(n_ch)
+    chp=chp+list(combinations(idx,2))
+    combos=n.array(chp)
+    return(combos)
+
+chp=channel_pairs()
+#print(chp)
+#exit(0)
+
+
+dmt = drf.DigitalMetadataReader(mc.xc_dir)
+b=dmt.get_bounds()
+#print(b)
+# tbd: don't read all at once.
+# now only plotting last 60 seconds of data.
+dd=dmt.read(b[1]-120*1000000-120*1000000,b[1]-120*1000000)
+k0=list(dd.keys())[0]
+rdi1=dd[k0]["rdi1"]
+rdi2=dd[k0]["rdi2"]
+xc=rdi1*n.conj(rdi2)
+xc[:,:]=0.0
+pwr=n.copy(xc)
+pwr[:,:]=0.0
+for k in dd.keys():
+    RDI1=dd[k]["rdi1"]
+    RDI2=dd[k]["rdi2"]
+    RDI3=dd[k]["rdi3"]
+    RDI4=dd[k]["rdi4"]
+    rdis=[RDI1,RDI2,RDI3,RDI4]
+    
+    tvec=dd[k]["tvec"]
+    rvec=dd[k]["rvec"]
+    fvec=dd[k]["fvec"]
+
+    for pi in chp:
+        if pi[0]==0 and pi[1]==2:
+            xc+=rdis[pi[0]]*n.conj(rdis[pi[1]])
+            pwr+=n.real(rdis[pi[0]]*n.conj(rdis[pi[0]]))
+
+pha=n.angle(xc-n.nanmedian(xc[50:800,:]))
+plt.subplot(121)
+plt.pcolormesh(fvec,rvec,pha.T,cmap="hsv")
+plt.title("%d-%d"%(pi[0],pi[1]))
+
+#plt.ylim([0,300])
+#plt.xlim([-5,5])
+plt.colorbar()
+
+
+plt.subplot(122)
+plt.pcolormesh(fvec,rvec,10.0*n.log10(n.abs(n.real(pwr.T-n.median(pwr.T)))),cmap="plasma",vmin=0)
+plt.title("%d-%d"%(pi[0],pi[0]))
+#plt.ylim([0,300])
+#plt.xlim([-5,5])
+plt.colorbar()
+plt.show()
+
+

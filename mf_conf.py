@@ -2,6 +2,24 @@ import numpy as n
 #import datetime
 import time
 from datetime import datetime, timedelta, timezone
+import scipy.constants as sc
+
+wavelength=sc.c/2.78e6
+
+#antenna_coords=[[69.58275,19.21912,0], # MF1
+ #               [0,0,0],               # loop
+  #              [69.58127, 19.21924,0],  # MF2
+   #             [69.58204, 19.22283, 0]] # MF3
+
+   # MF3 (ch1)
+   # loop (ch2)
+    # MF1  (ch3)
+    # MF2 (ch4)
+antenna_coords=[[69.58204, 19.22283, 0], 
+                [69.58313, 19.22024,0],               
+                [69.58275,19.21912,0],
+                [69.58127, 19.21924,0]]  
+                
 
 xc_dir="/data2/metadata/xc"
 raw_dir="/data1/mfraw"
