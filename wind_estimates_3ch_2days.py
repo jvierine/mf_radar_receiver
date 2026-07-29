@@ -73,7 +73,7 @@ RADAR_ALT_M = 0.0
 
 
 def unix_to_datetime(t):
-    return dt.datetime.utcfromtimestamp(float(t))
+    return dt.datetime.fromtimestamp(float(t), tz=dt.timezone.utc)
 
 
 def day_to_unix(date_str):
