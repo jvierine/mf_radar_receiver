@@ -27,10 +27,14 @@ height-resolved mean wind. A lobe is rejected when its observed radial velocity
 differs from that wind's predicted radial velocity by more than 40 m/s.
 
 For each accepted AoA, the ch1, ch3, and ch4 complex time series are phase
-steered and coherently added. Doppler is then estimated by a bounded
-least-squares complex-sinusoid fit. The hard radial-velocity interval is
-`[-300, 300] m/s`, which keeps the fit unaliased. The fitted sinusoid must also
-pass the high-SNR threshold.
+steered and coherently added. Doppler is then estimated from the centered
+one-second complex-voltage segment (20 samples at the 20 Hz coherently
+integrated voltage rate). The segment is divided by its RMS amplitude before
+the bounded least-squares complex-sinusoid fit; this improves numerical
+conditioning without changing fitted frequency or SNR. The hard monostatic
+radial-velocity interval is `[-300, 300] m/s`, using
+`v_r = -wavelength * f_D / 2`. The fitted sinusoid must also pass the high-SNR
+threshold.
 
 The intermediate echo-snippet rows contain timestamp, relative ENU position,
 geometric altitude, three direction cosines, slant range, geographic

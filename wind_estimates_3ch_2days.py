@@ -57,6 +57,7 @@ DOPPLER_SIGN  = -1
 DOPPLER_TO_MS = mc.wavelength / 2.0
 MAX_RADIAL_VELOCITY_MS = 300.0
 MAX_FIT_DOPPLER_HZ = 2.0 * MAX_RADIAL_VELOCITY_MS / mc.wavelength
+DOPPLER_FIT_DURATION_S = 1.0
 BEAMFORMED_SNR_MIN = SNR_THRESH
 
 MIN_POINTS_PER_HEIGHT_BIN = 8
@@ -114,12 +115,40 @@ def fit_complex_sinusoid(times, voltage):
     """
     Fit voltage = amplitude * exp(2j*pi*doppler*times) + residual.
 
+    Use the centered one-second portion of the coherently beamformed complex
+    voltage and normalize it to unit RMS amplitude before fitting. The
+    normalization improves conditioning without changing the fitted frequency
+    or the signal-to-residual power ratio.
+
     A dense coarse search prevents a bounded scalar optimizer from selecting
     the wrong local minimum. The hard radial-velocity bound also keeps the fit
     inside the unaliased region of the coherently integrated time series.
     """
     times = np.asarray(times, dtype=np.float64)
     voltage = np.asarray(voltage, dtype=np.complex128)
+    if times.ndim != 1 or voltage.ndim != 1 or len(times) != len(voltage):
+        raise ValueError("times and voltage must be equal-length vectors")
+    if len(times) < 2:
+        raise ValueError("at least two complex-voltage samples are required")
+
+    sample_interval = float(np.median(np.diff(times)))
+    if not np.isfinite(sample_interval) or sample_interval <= 0:
+        raise ValueError("times must increase uniformly")
+    fit_samples = min(
+        len(times),
+        max(2, int(round(DOPPLER_FIT_DURATION_S / sample_interval))),
+    )
+    fit_start = (len(times) - fit_samples) // 2
+    fit_stop = fit_start + fit_samples
+    times = times[fit_start:fit_stop]
+    times = times - times[0]
+    voltage = voltage[fit_start:fit_stop]
+
+    voltage_scale = float(np.sqrt(np.mean(np.abs(voltage) ** 2)))
+    if not np.isfinite(voltage_scale) or voltage_scale <= 0:
+        raise ValueError("complex-voltage snippet has zero or invalid amplitude")
+    voltage = voltage / voltage_scale
+
     frequencies = np.linspace(-MAX_FIT_DOPPLER_HZ, MAX_FIT_DOPPLER_HZ, 401)
     basis = np.exp(-2j * np.pi * frequencies[:, None] * times[None, :])
     coarse_score = np.abs(basis @ voltage) ** 2
@@ -146,7 +175,7 @@ def fit_complex_sinusoid(times, voltage):
     residual = voltage - amplitude * model
     noise_power = max(float(np.mean(np.abs(residual) ** 2)), 1e-30)
     snr = float(np.abs(amplitude) ** 2 / noise_power)
-    return frequency, amplitude, snr
+    return frequency, amplitude * voltage_scale, snr
 
 
 def beamform_three_dipoles(rti1, rti3, rti4, pos_diffs, east, north, up):

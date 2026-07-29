@@ -645,6 +645,81 @@ def plot_range_band(
     os.replace(temporary, output_path)
 
 
+def plot_doppler_range_band(
+    detections: np.ndarray,
+    start: dt.datetime,
+    end: dt.datetime,
+    output_path: Path,
+    range_limits_km: tuple[float, float] = (75.0, 125.0),
+) -> None:
+    """Plot accepted time–range pixels colored by monostatic Doppler velocity."""
+    figure, axis = plt.subplots(
+        figsize=(12, 5),
+        facecolor="#070b14",
+        constrained_layout=True,
+    )
+    axis.set_facecolor("#050810")
+    axis.tick_params(colors="#8fa1ba")
+    axis.xaxis.label.set_color("#b7c5d9")
+    axis.yaxis.label.set_color("#b7c5d9")
+    axis.title.set_color("#edf4ff")
+    for spine in axis.spines.values():
+        spine.set_color("#314563")
+
+    selected = detections[
+        (detections[:, 9] >= range_limits_km[0])
+        & (detections[:, 9] <= range_limits_km[1])
+    ]
+    if len(selected):
+        velocity_limit = float(
+            np.clip(np.percentile(np.abs(selected[:, 4]), 98), 20, 300)
+        )
+        pixels = axis.scatter(
+            [
+                dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+                for value in selected[:, 0]
+            ],
+            selected[:, 9],
+            c=selected[:, 4],
+            marker="s",
+            s=22,
+            cmap="seismic",
+            vmin=-velocity_limit,
+            vmax=velocity_limit,
+            linewidths=0,
+        )
+        colorbar = figure.colorbar(pixels, ax=axis, pad=0.01)
+        colorbar.set_label(
+            "Monostatic Doppler velocity (m/s)", color="#b7c5d9"
+        )
+        colorbar.ax.tick_params(colors="#8fa1ba")
+    else:
+        axis.text(
+            0.5,
+            0.5,
+            "No automatically accepted pixels in this band",
+            color="#b7c5d9",
+            transform=axis.transAxes,
+            ha="center",
+        )
+
+    axis.set_xlim(start, end)
+    axis.set_ylim(*range_limits_km)
+    axis.set_ylabel("One-way range (km)")
+    axis.set_xlabel("Time (UTC)")
+    axis.xaxis.set_major_formatter(
+        mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
+    )
+    axis.set_title(
+        "Accepted echoes · one-second complex-voltage Doppler fit · "
+        f"{range_limits_km[0]:.0f}–{range_limits_km[1]:.0f} km"
+    )
+    temporary = output_path.with_suffix(".tmp.png")
+    figure.savefig(temporary, dpi=180, facecolor=figure.get_facecolor())
+    plt.close(figure)
+    os.replace(temporary, output_path)
+
+
 def main() -> None:
     args = parse_args()
     if args.end <= args.start:
@@ -711,6 +786,13 @@ def main() -> None:
         start_unix,
         end_unix,
     )
+    doppler_plot_path = output_dir / "doppler_75_125_km.png"
+    plot_doppler_range_band(
+        detections,
+        args.start,
+        args.end,
+        doppler_plot_path,
+    )
 
     plot_path = output_dir / "interval_analysis.png"
     plot_analysis(
@@ -757,6 +839,7 @@ def main() -> None:
     print(json.dumps(metrics, indent=2, allow_nan=False))
     print(f"Plot: {plot_path}")
     print(f"Focused RTI: {focused_plot_path}")
+    print(f"Focused Doppler: {doppler_plot_path}")
 
 
 if __name__ == "__main__":
