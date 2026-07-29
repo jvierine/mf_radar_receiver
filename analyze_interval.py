@@ -672,7 +672,11 @@ def plot_doppler_range_band(
     ]
     if len(selected):
         velocity_limit = float(
-            np.clip(np.percentile(np.abs(selected[:, 4]), 98), 20, 300)
+            np.clip(
+                np.ceil(np.percentile(np.abs(selected[:, 4]), 98)),
+                1,
+                300,
+            )
         )
         pixels = axis.scatter(
             [
