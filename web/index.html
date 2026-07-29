@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b14">
+  <meta name="description" content="Realtime operational monitor for the Ramfjordmoen MF radar receiver.">
+  <title>Ramfjordmoen MF Radar Monitor</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="identity">
+        <div class="eyebrow">Tromsø Geophysical Observatory</div>
+        <h1>Ramfjordmoen <span>MF Radar</span></h1>
+        <p>Realtime receiver and processing monitor · 2.78 MHz</p>
+      </div>
+      <div class="header-status" aria-live="polite">
+        <div class="status-pill" id="overall-pill" data-state="unknown">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="overall-label">Connecting</span>
+        </div>
+        <div class="clock-block">
+          <time id="utc-clock">--:--:-- UTC</time>
+          <span id="last-update">Waiting for telemetry</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="metrics" aria-label="System overview">
+      <article class="metric">
+        <div class="metric-label">Acquisition</div>
+        <div class="metric-value" id="acquisition-value">—</div>
+        <div class="metric-detail" id="acquisition-detail">Four receiver channels</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Processing lag</div>
+        <div class="metric-value" id="lag-value">—</div>
+        <div class="metric-detail" id="lag-detail">Cross-correlation pipeline</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Memory</div>
+        <div class="metric-value" id="memory-value">—</div>
+        <div class="metric-detail" id="memory-detail">Receiver host</div>
+      </article>
+      <article class="metric">
+        <div class="metric-label">Raw ring buffer</div>
+        <div class="metric-value" id="disk-value">—</div>
+        <div class="metric-detail" id="disk-detail">/data1</div>
+      </article>
+    </section>
+
+    <section class="section-heading">
+      <div>
+        <div class="eyebrow">Rolling quick-look · latest 48 hours</div>
+        <h2>Range–time intensity</h2>
+      </div>
+      <p>Combined power from the three MF dipole antennas. Click a plot to inspect it.</p>
+    </section>
+
+    <section class="rti-grid" id="plot-grid" aria-label="Latest 48-hour range-time intensity plots">
+      <article class="plot-card" data-plot="rti_full">
+        <header>
+          <div>
+            <span class="channel-id">Full range</span>
+            <h3>Ionospheric propagation</h3>
+          </div>
+          <span class="freshness" id="rti_full-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="0" aria-label="Open full-range 48-hour RTI">
+          <img id="rti_full-image" src="latest_rti_48h_full.png" alt="Latest 48-hour range-time intensity from 0 to 1500 kilometres">
+        </button>
+        <footer>
+          <time id="rti_full-time">Awaiting plot metadata</time>
+          <span>0–1500 km</span>
+        </footer>
+      </article>
+
+      <article class="plot-card" data-plot="rti_mesosphere">
+        <header>
+          <div>
+            <span class="channel-id">Mesosphere</span>
+            <h3>Partial reflections &amp; meteor echoes</h3>
+          </div>
+          <span class="freshness" id="rti_mesosphere-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="1" aria-label="Open mesospheric 48-hour RTI">
+          <img id="rti_mesosphere-image" src="latest_rti_48h_mesosphere.png" alt="Latest 48-hour range-time intensity from 0 to 200 kilometres">
+        </button>
+        <footer>
+          <time id="rti_mesosphere-time">Awaiting plot metadata</time>
+          <span>0–200 km</span>
+        </footer>
+      </article>
+    </section>
+
+    <section class="operations">
+      <div class="section-heading compact">
+        <div>
+          <div class="eyebrow">Operational telemetry</div>
+          <h2>Receiver health</h2>
+        </div>
+      </div>
+      <div class="ops-grid">
+        <article class="ops-card">
+          <h3>Pipeline</h3>
+          <div id="process-list" class="process-list">
+            <p class="empty-state">Waiting for process telemetry.</p>
+          </div>
+        </article>
+        <article class="ops-card">
+          <h3>Storage</h3>
+          <div id="storage-list" class="storage-list">
+            <p class="empty-state">Waiting for storage telemetry.</p>
+          </div>
+        </article>
+        <article class="ops-card station-card">
+          <h3>Station</h3>
+          <dl>
+            <div><dt>Host</dt><dd id="host-value">mfradar</dd></div>
+            <div><dt>Location</dt><dd>Ramfjordmoen, Norway</dd></div>
+            <div><dt>Coordinates</dt><dd>69.582° N, 19.220° E</dd></div>
+            <div><dt>Uptime</dt><dd id="uptime-value">—</dd></div>
+          </dl>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Quick-look operational products from the Ramfjordmoen MF radar receiver.
+      The system is operated by Tromsø Geophysical Observatory, UiT The Arctic University of Norway.
+    </p>
+    <p class="keyboard-help">Keyboard: <kbd>←</kbd> <kbd>→</kbd> change plot · <kbd>Enter</kbd> open · <kbd>Esc</kbd> close</p>
+  </footer>
+
+  <dialog id="plot-dialog" aria-label="Expanded receiver plot">
+    <div class="dialog-shell">
+      <div class="dialog-header">
+        <div>
+          <span class="channel-id" id="dialog-channel">Full range</span>
+          <h2 id="dialog-title">Ionospheric propagation</h2>
+        </div>
+        <button id="dialog-close" class="close-button" type="button" aria-label="Close expanded plot">×</button>
+      </div>
+      <img id="dialog-image" alt="Expanded receiver plot">
+      <div class="dialog-controls">
+        <button id="dialog-prev" type="button">← Previous</button>
+        <span id="dialog-time">—</span>
+        <button id="dialog-next" type="button">Next →</button>
+      </div>
+    </div>
+  </dialog>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-29T10:20:00Z",
+  "host": "mfradar",
+  "overall_status": "warning",
+  "uptime_seconds": 5271840,
+  "acquisition_age_seconds": 2,
+  "acquisition_channels_ok": 4,
+  "processing_lag_seconds": 623700,
+  "rti": {
+    "generated_at": "2026-07-29T10:19:30Z",
+    "window_start": "2026-07-27T10:19:00Z",
+    "window_end": "2026-07-29T10:19:00Z",
+    "age_seconds": 30,
+    "time_bins": 2880
+  },
+  "memory": {
+    "total_bytes": 134217728000,
+    "available_bytes": 122406567936,
+    "used_percent": 8.8
+  },
+  "disks": [
+    {
+      "mount": "/data1",
+      "total_bytes": 20890720927744,
+      "free_bytes": 9015995347763,
+      "used_percent": 53.0
+    },
+    {
+      "mount": "/data2",
+      "total_bytes": 20890720927744,
+      "free_bytes": 15393159946240,
+      "used_percent": 20.0
+    }
+  ],
+  "processes": [
+    { "name": "ringbuffer", "label": "Digital RF ring buffer", "alive": true, "pid": 101201 },
+    { "name": "recorder_10", "label": "USRP recorder · 192.168.10.2", "alive": true, "pid": 101203 },
+    { "name": "recorder_20", "label": "USRP recorder · 192.168.20.2", "alive": true, "pid": 101202 },
+    { "name": "processor", "label": "Cross-correlation processor", "alive": true, "pid": 737455 }
+  ],
+  "channels": {
+    "ch1": {
+      "data_time": "2026-07-22T05:05:34Z",
+      "data_age_seconds": 623666,
+      "acquisition_age_seconds": 2
+    },
+    "ch2": {
+      "data_time": "2026-07-22T05:05:34Z",
+      "data_age_seconds": 623666,
+      "acquisition_age_seconds": 2
+    },
+    "ch3": {
+      "data_time": "2026-07-22T05:05:34Z",
+      "data_age_seconds": 623666,
+      "acquisition_age_seconds": 2
+    },
+    "ch4": {
+      "data_time": "2026-07-22T05:05:34Z",
+      "data_age_seconds": 623666,
+      "acquisition_age_seconds": 2
+    }
+  }
+}

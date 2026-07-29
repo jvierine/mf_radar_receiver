@@ -1,0 +1,18 @@
+[Unit]
+Description=Generate and publish the Ramfjordmoen MF radar monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=radar
+WorkingDirectory=/home/radar/src/mf_radar_receiver
+Environment=MPLBACKEND=Agg
+ExecStart=/home/radar/drf/bin/python3 /home/radar/src/mf_radar_receiver/plot_monitor_rti.py
+ExecStart=/home/radar/drf/bin/python3 /home/radar/src/mf_radar_receiver/publish_monitor.py
+Nice=10
+IOSchedulingClass=idle
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target
