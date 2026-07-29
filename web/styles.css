@@ -320,6 +320,22 @@ main {
   aspect-ratio: 2.25 / 1;
 }
 
+.plot-method {
+  min-height: 96px;
+  margin: 0;
+  padding: 17px 20px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.55;
+}
+
+.plot-method code {
+  color: #b8eaff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+}
+
 .plot-card > footer {
   min-height: 51px;
   border-top: 1px solid var(--line-soft);

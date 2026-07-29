@@ -1,10 +1,5 @@
 
 import numpy as np
-import matplotlib
-
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
 import digital_rf as drf
 import logging
 import os
@@ -18,7 +13,6 @@ import calc_rti as crti
 BLOCK_S      = 2            # processing block length, seconds
 N_SAMPLES    = BLOCK_S * 1_000_000   # raw samples per block at 1 MHz
 CHANNELS     = ["ch1", "ch2", "ch3", "ch4"]
-PLOT_DIR     = "/data2/plots"
 SLEEP_S      = 0.5          # poll interval when waiting for new data, seconds
 
 # ── Logging — errors and warnings only, written to file ───────────────────────
@@ -28,32 +22,6 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)s  %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-
-
-def save_plots(rdis, rvec, tvec, i0):
-    """Save per-channel RTI power plots for this block."""
-    title = mc.unix2datestr(i0 / 1e6)
-    dirname = mc.unix2dirname(i0 / 1e6)
-
-    for ch, RDI in zip(CHANNELS, rdis):
-        dB     = 10.0 * np.log10(np.abs(RDI.T) ** 2 + 1e-30)
-        nfloor = np.nanmedian(dB)
-
-        fig, ax = plt.subplots(figsize=(8, 4))
-        ax.pcolormesh(tvec, rvec, dB - nfloor,
-                      cmap="plasma", vmin=-3, vmax=40, shading="auto")
-        ax.set_title(f"{title}  [{ch}]")
-        ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Range (km)")
-        ax.set_ylim(rvec[0], rvec[-1])
-        cb = fig.colorbar(ax.collections[0], ax=ax)
-        cb.set_label("Power (dB above noise)")
-        fig.tight_layout()
-
-        out_dir = os.path.join(PLOT_DIR, ch, dirname)
-        os.makedirs(out_dir, exist_ok=True)
-        fig.savefig(os.path.join(out_dir, f"rti-{int(i0/1e6):06d}.png"), dpi=100)
-        plt.close(fig)
 
 
 def process_block(d, dmw, i0):
@@ -88,10 +56,6 @@ def process_block(d, dmw, i0):
         "fvec": fvec,
     }
     dmw.write(i0, data_out)
-
-    # RTI plots use the RTI from the first channel read; re-read for plotting
-    # using already-computed rdis (cheap: just the power image)
-    save_plots(rdis, rvec, tvec, i0)
 
     return True
 
