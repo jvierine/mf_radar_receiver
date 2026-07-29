@@ -131,9 +131,10 @@
         </li>
         <li>
           <strong>Calculate SNR.</strong>
-          The displayed value is <code>10 log₁₀(P / Pnoise)</code>. The
-          mesospheric view is fixed at −3 to 20 dB; the full-range view is
-          fixed at −3 to 35 dB.
+          Noise power is subtracted before division: the displayed value is
+          <code>10 log₁₀[(P − Pnoise) / Pnoise]</code>. Non-positive estimates
+          fall below the plotted scale. The mesospheric view is fixed at
+          −3 to 20 dB; the full-range view is fixed at −3 to 35 dB.
         </li>
       </ol>
       <p>

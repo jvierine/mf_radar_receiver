@@ -12,7 +12,8 @@ range-time-intensity plots:
 The plots show quick-look SNR. Five consecutive IPPs and the three dipole
 channels are averaged in power, power is reduced to approximately 1.5 km range
 bins, and the per-profile noise floor is estimated as the 20th percentile
-between 250 and 1400 km. The mesospheric color scale is fixed at -3 to 20 dB.
+between 250 and 1400 km. SNR is `(power - noise) / noise`. The mesospheric
+color scale is fixed at -3 to 20 dB.
 
 `publish_monitor.py` collects receiver telemetry and publishes the two plots
 and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in

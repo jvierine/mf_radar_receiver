@@ -118,9 +118,9 @@ def plot_rti(
     noise_mask = (range_km >= NOISE_RANGE_KM[0]) & (range_km <= NOISE_RANGE_KM[1])
     noise_power = np.nanpercentile(power[:, noise_mask], NOISE_PERCENTILE, axis=1)
     noise_power = np.maximum(noise_power, 1e-20)
-    snr_db = 10.0 * np.log10(
-        np.maximum(power[:, mask], 1e-20) / noise_power[:, np.newaxis]
-    ).T
+    signal_power = power[:, mask] - noise_power[:, np.newaxis]
+    snr_linear = np.maximum(signal_power / noise_power[:, np.newaxis], 1e-20)
+    snr_db = (10.0 * np.log10(snr_linear)).T
     finite = snr_db[np.isfinite(snr_db)]
     if finite.size == 0:
         raise RuntimeError("RTI contains no finite samples")
