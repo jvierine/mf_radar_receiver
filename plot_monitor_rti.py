@@ -31,6 +31,9 @@ DEFAULT_CHANNELS = ("ch1", "ch3", "ch4")
 NOISE_RANGE_KM = (250.0, 1400.0)
 NOISE_PERCENTILE = 20.0
 THIRTY_MINUTE_NOISE_RANGE_KM = (30.0, 50.0)
+INCOHERENT_POWER_LOOKS = 5 * DECIMATION * len(DEFAULT_CHANNELS)
+INCOHERENT_DETECTION_GAIN_DB = 5.0 * np.log10(INCOHERENT_POWER_LOOKS)
+THIRTY_MINUTE_SNR_MIN_DB = -11.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -259,7 +262,7 @@ def main() -> None:
             output_dir / "latest_rti_30m_mesosphere.png",
             200.0,
             "Ramfjordmoen MF radar · latest 30 minutes · 0–200 km",
-            0.0,
+            THIRTY_MINUTE_SNR_MIN_DB,
             20.0,
             fixed_noise_power=thirty_minute_noise_power,
         )
@@ -288,7 +291,9 @@ def main() -> None:
         "mesosphere_30m_noise_method": "mean_power_over_time_and_range",
         "mesosphere_30m_noise_range_km": list(THIRTY_MINUTE_NOISE_RANGE_KM),
         "mesosphere_30m_noise_power": thirty_minute_noise_power,
-        "mesosphere_30m_snr_limits_db": [0.0, 20.0],
+        "mesosphere_30m_snr_limits_db": [THIRTY_MINUTE_SNR_MIN_DB, 20.0],
+        "mesosphere_30m_incoherent_power_looks": INCOHERENT_POWER_LOOKS,
+        "mesosphere_30m_detection_gain_db": INCOHERENT_DETECTION_GAIN_DB,
     }
     atomic_json(output_dir / "rti_status.json", status)
     print(
