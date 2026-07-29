@@ -239,7 +239,7 @@ def plot_dense_map(
     axis.set_xlim(start, end)
     axis.set_ylim(range_km[0], range_km[-1])
     axis.set_xlabel("Time (UTC)", color="#b7c5d9")
-    axis.set_ylabel("One-way range (km)", color="#b7c5d9")
+    axis.set_ylabel("Round-trip range (km)", color="#b7c5d9")
     axis.set_title(
         "Unfiltered dense Doppler fit · every time–range cell · "
         f"{range_km[0]:.0f}–{range_km[-1]:.0f} km",

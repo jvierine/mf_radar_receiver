@@ -6,8 +6,8 @@ This directory contains the static site published at
 The receiver runs `plot_monitor_rti.py` to maintain two rolling 48-hour
 range-time-intensity plots:
 
-- `latest_rti_48h_full.png`: 0–1500 km one-way range.
-- `latest_rti_48h_mesosphere.png`: 0–200 km one-way range.
+- `latest_rti_48h_full.png`: 0–1500 km round-trip range.
+- `latest_rti_48h_mesosphere.png`: 0–200 km round-trip range.
 
 The plots show quick-look SNR. Five consecutive IPPs and the three dipole
 channels are averaged in power, power is reduced to approximately 1.5 km range

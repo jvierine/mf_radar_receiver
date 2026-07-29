@@ -226,7 +226,7 @@ def plot_rti(
     axis.set_ylim(0, maximum_range_km)
     axis.set_title(title, color="#edf4ff", fontsize=17, pad=14, weight="semibold")
     axis.set_xlabel("Time (UTC)", color="#b7c5d9", labelpad=9)
-    axis.set_ylabel("One-way range (km)", color="#b7c5d9", labelpad=9)
+    axis.set_ylabel("Round-trip range (km)", color="#b7c5d9", labelpad=9)
     duration_seconds = float(times[-1] - times[0])
     if duration_seconds <= 3600:
         axis.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))

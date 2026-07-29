@@ -131,7 +131,7 @@ def plot_combined_rti(
     for axis in axes:
         axis.set_xlim(start, end)
         axis.set_ylim(0.0, 200.0)
-        axis.set_ylabel("One-way range (km)")
+        axis.set_ylabel("Round-trip range (km)")
     axes[1].set_xlabel("Time (UTC)", color="#b7c5d9")
     axes[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
     axes[1].xaxis.set_major_formatter(

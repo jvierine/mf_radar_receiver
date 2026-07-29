@@ -536,7 +536,7 @@ def plot_analysis(
             mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
         )
         axis.set_ylim(0, upper_range)
-        axis.set_ylabel("One-way range (km)")
+        axis.set_ylabel("Round-trip range (km)")
         axis.set_title(title)
         colorbar = figure.colorbar(image, ax=axis, pad=0.01)
         colorbar.set_label("Power / 30–50 km background (dB)")
@@ -627,7 +627,7 @@ def plot_range_band(
         vmax=20.0,
     )
     axis.set_ylim(*range_limits_km)
-    axis.set_ylabel("One-way range (km)")
+    axis.set_ylabel("Round-trip range (km)")
     axis.set_xlabel("Time (UTC)")
     axis.xaxis.set_major_formatter(
         mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
@@ -709,7 +709,7 @@ def plot_doppler_range_band(
 
     axis.set_xlim(start, end)
     axis.set_ylim(*range_limits_km)
-    axis.set_ylabel("One-way range (km)")
+    axis.set_ylabel("Round-trip range (km)")
     axis.set_xlabel("Time (UTC)")
     axis.xaxis.set_major_formatter(
         mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
