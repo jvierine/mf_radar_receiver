@@ -7,7 +7,7 @@ ngrid=200
 u=n.linspace(-1,1,num=ngrid)
 v=n.linspace(-1,1,num=ngrid)
 uu,vv=n.meshgrid(u,v)
-ww=n.sqrt(1-uu**2.0-vv**2.0)
+ww=n.sqrt(n.maximum(1-uu**2.0-vv**2.0, 0.0))
 
 max_zenith_angle=25.0
 max_uhor=n.sin(n.pi*max_zenith_angle/180)
