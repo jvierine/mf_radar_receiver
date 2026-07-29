@@ -378,6 +378,14 @@ main {
   font-weight: 650;
 }
 
+.storage-name small {
+  display: block;
+  margin-top: 3px;
+  color: var(--dim);
+  font-size: 0.68rem;
+  font-weight: 500;
+}
+
 .process-meta,
 .storage-meta,
 .station-card dt {

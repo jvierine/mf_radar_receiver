@@ -77,7 +77,7 @@ function renderProcesses(processes = []) {
     row.innerHTML = `
       <span class="process-indicator ${process.alive ? "alive" : ""}" aria-hidden="true"></span>
       <span class="process-name">${process.label}</span>
-      <span class="process-meta">${process.alive ? `PID ${process.pid}` : "not running"}</span>
+      <span class="process-meta">${process.alive ? (process.pid ? `PID ${process.pid}` : "active") : "not running"}</span>
     `;
     target.append(row);
   });
@@ -91,7 +91,7 @@ function renderStorage(disks = []) {
     const row = document.createElement("div");
     row.className = "storage-row";
     row.innerHTML = `
-      <span class="storage-name">${disk.mount}</span>
+      <span class="storage-name">${disk.role || disk.mount} <small>${disk.mount}</small></span>
       <span class="storage-meta">${usedPercent}% · ${formatBytes(disk.free_bytes)} free</span>
       <div class="storage-bar" aria-label="${disk.mount} ${usedPercent}% used">
         <span style="width: ${Math.min(100, usedPercent)}%"></span>

@@ -22,12 +22,14 @@
   "disks": [
     {
       "mount": "/data1",
+      "role": "Raw-voltage ring buffer",
       "total_bytes": 20890720927744,
       "free_bytes": 9015995347763,
       "used_percent": 53.0
     },
     {
       "mount": "/data2",
+      "role": "Analyzed wind products",
       "total_bytes": 20890720927744,
       "free_bytes": 15393159946240,
       "used_percent": 20.0

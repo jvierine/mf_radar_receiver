@@ -81,16 +81,36 @@ def process_rows() -> list[dict]:
                 "pid": matches[0][0] if matches else None,
             }
         )
+    timer_active = subprocess.run(
+        ["systemctl", "is-active", "--quiet", "mf-radar-monitor.timer"],
+        check=False,
+    ).returncode == 0
+    result.append(
+        {
+            "name": "monitor_timer",
+            "label": "Web monitor refresh timer",
+            "alive": timer_active,
+            "pid": None,
+        }
+    )
     return result
 
 
 def disk_rows() -> list[dict]:
+    roles = {
+        "/": "Operating system",
+        "/data1": "Raw-voltage ring buffer",
+        "/data2": "Analyzed wind products",
+        "/data3": "Available data disk",
+        "/data4": "Available data disk",
+    }
     rows = []
-    for mount in ("/data1", "/data2"):
+    for mount, role in roles.items():
         usage = shutil.disk_usage(mount)
         rows.append(
             {
                 "mount": mount,
+                "role": role,
                 "total_bytes": usage.total,
                 "free_bytes": usage.free,
                 "used_percent": 100.0 * usage.used / usage.total,
@@ -199,7 +219,7 @@ def main() -> None:
             "rsync",
             "-az",
             "--delay-updates",
-            "--chmod=F644",
+            "--chmod=D755,F644",
             f"{staging}/",
             args.remote,
         ]
