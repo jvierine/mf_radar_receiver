@@ -59,7 +59,7 @@
         <div class="eyebrow">Rolling quick-look · latest 48 hours</div>
         <h2>Range–time intensity</h2>
       </div>
-      <p>Quick-look SNR from the three MF dipole antennas. Click a plot to inspect it.</p>
+      <p>Noise-referenced power from the three MF dipole antennas. Click a plot to inspect it.</p>
     </section>
 
     <section class="rti-grid" id="plot-grid" aria-label="Latest 48-hour range-time intensity plots">
@@ -75,10 +75,11 @@
           <img id="rti_full-image" src="latest_rti_48h_full.png" alt="Latest 48-hour range-time intensity from 0 to 1500 kilometres">
         </button>
         <p class="plot-method">
-          Complex voltage → DC-offset correction → <code>|z|²</code> → incoherent
-          average of five 10 ms IPPs, ten range samples, and dipoles 1, 3, and 4.
-          Noise is the profile’s 20th-percentile power at 250–1400 km; displayed
-          SNR is <code>10 log₁₀[(P−Pnoise)/Pnoise]</code>, clipped to −3…35 dB.
+          Complex voltage → DC-offset correction → transmit-phase correction →
+          20 kHz low-pass filter → 10× decimation → coherent integration of five
+          10 ms IPPs. Power from dipoles 1, 3, and 4 is then averaged. Background
+          is the profile’s 20th-percentile power at 250–1400 km; color is
+          <code>10 log₁₀(P/Pbackground)</code>, clipped to −3…35 dB.
         </p>
         <footer>
           <time id="rti_full-time">Awaiting plot metadata</time>
@@ -98,8 +99,8 @@
           <img id="rti_mesosphere-image" src="latest_rti_48h_mesosphere.png" alt="Latest 48-hour range-time intensity from 0 to 200 kilometres">
         </button>
         <p class="plot-method">
-          The same power and noise processing is used at approximately 1.5 km
-          one-way range resolution, with SNR clipped to −3…20 dB. This quick-look
+          The same processing is used at approximately 1.5 km one-way range
+          spacing, with power/background clipped to −3…20 dB. This quick-look
           does not yet classify echoes: ionospheric propagation can appear inside
           the 0–200 km display alongside mesospheric partial reflections and meteors.
         </p>
@@ -122,13 +123,13 @@
         </button>
         <p class="plot-method">
           The unfiltered comparison field for the wind-selection RTI below.
-          It uses the same three-dipole quick-look processing and approximately
-          1.5 km one-way range resolution. One background-noise power is the
+          It uses the same three-dipole coherent quick-look processing and
+          approximately 1.5 km one-way range spacing. One background power is the
           arithmetic mean across every time sample in this 30-minute window and
-          all range bins from 30–50 km. Averaging 5 IPPs × 10 range samples ×
-          3 receiver channels gives 150 incoherent power looks, suppressing
-          noise fluctuations by nominally 10.9 dB. The fixed −11…20 dB scale
-          exposes those fluctuations; this is detection gain, not mean-SNR gain.
+          all range bins from 30–50 km. Color is
+          <code>10 log₁₀(P/Pbackground)</code> on a fixed −10…20 dB scale, so
+          ordinary samples below the interval mean remain visible. Negative
+          values mean below-background power—not negative physical SNR.
         </p>
         <footer>
           <time id="rti_mesosphere_30m-time">Awaiting plot metadata</time>
@@ -189,7 +190,7 @@
     <section class="processing-note" aria-labelledby="processing-title">
       <div>
         <div class="eyebrow">Quick-look method</div>
-        <h2 id="processing-title">From voltage to SNR</h2>
+        <h2 id="processing-title">From voltage to noise-referenced power</h2>
       </div>
       <ol>
         <li>
@@ -198,19 +199,22 @@
           is removed from every sample.
         </li>
         <li>
-          <strong>Form received power.</strong>
-          Five consecutive 10 ms interpulse periods are converted to
-          <code>|z|²</code> and averaged incoherently.
+          <strong>Reference each transmitted pulse.</strong>
+          The phase of the first 100 samples of the direct-path transmit pulse
+          on channel 1 is measured and removed from all three dipole voltages.
+        </li>
+        <li>
+          <strong>Filter and coherently integrate.</strong>
+          A 50-tap Hann-windowed 20 kHz low-pass filter is applied, the voltage
+          is decimated from 1 MHz to 100 kHz, and five consecutive 10 ms IPPs
+          are added coherently. For a phase-stable echo, five-pulse integration
+          provides a nominal factor-five (7.0 dB) SNR gain.
         </li>
         <li>
           <strong>Combine the dipoles.</strong>
-          Power from channels 1, 3, and 4 is averaged. The broadband loop
-          channel is excluded from this quick-look product.
-        </li>
-        <li>
-          <strong>Reduce the range resolution.</strong>
-          Ten adjacent 1 MHz voltage samples are averaged in power, producing
-          approximately 1.5 km one-way range bins.
+          Power is formed after coherent integration and averaged across
+          channels 1, 3, and 4. The broadband loop channel is excluded.
+          The resulting one-way range-gate spacing is approximately 1.5 km.
         </li>
         <li>
           <strong>Estimate the noise floor.</strong>
@@ -218,17 +222,20 @@
           250 and 1400 km is used as a robust receiver-noise estimate.
         </li>
         <li>
-          <strong>Calculate SNR.</strong>
-          Noise power is subtracted before division: the displayed value is
-          <code>10 log₁₀[(P − Pnoise) / Pnoise]</code>. Non-positive estimates
-          fall below the plotted scale. The mesospheric view is fixed at
-          −3 to 20 dB; the full-range view is fixed at −3 to 35 dB.
+          <strong>Reference power to the background.</strong>
+          The displayed value is <code>10 log₁₀(P/Pbackground)</code>. This
+          noise-biased power ratio is deliberately not labelled physical SNR:
+          noise fluctuates around 0 dB and can legitimately plot below it.
+          The mesospheric view is fixed at −3 to 20 dB; the full-range view is
+          fixed at −3 to 35 dB.
         </li>
       </ol>
       <p>
         One profile is retained per minute over a rolling 48-hour window.
-        This is an operational quick-look: it does not use coherent integration,
-        matched filtering, phase calibration, beamforming, or Doppler selection.
+        This is an operational quick-look. It uses coherent pulse integration,
+        but not phase calibration between antennas, beamforming, or Doppler
+        selection. The wind-selection product below performs those additional
+        interferometric and Doppler steps.
       </p>
     </section>
 

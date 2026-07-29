@@ -27,13 +27,17 @@ FS = 1_000_000
 IPP_SAMPLES = 10_000
 DECIMATION = 10
 OFFSET = 8_900
+TX_REFERENCE_CHANNEL = "ch1"
+TX_REFERENCE_SAMPLES = 100
+GROUND_CLUTTER_SAMPLES = 120
+TX_CENTER_RAW_SAMPLES = 54
+FIR_TAPS = 50
 DEFAULT_CHANNELS = ("ch1", "ch3", "ch4")
 NOISE_RANGE_KM = (250.0, 1400.0)
 NOISE_PERCENTILE = 20.0
 THIRTY_MINUTE_NOISE_RANGE_KM = (30.0, 50.0)
-INCOHERENT_POWER_LOOKS = 5 * DECIMATION * len(DEFAULT_CHANNELS)
-INCOHERENT_DETECTION_GAIN_DB = 5.0 * np.log10(INCOHERENT_POWER_LOOKS)
-THIRTY_MINUTE_SNR_MIN_DB = -11.0
+THIRTY_MINUTE_POWER_RATIO_MIN_DB = -10.0
+PROCESSING_VERSION = 2
 
 
 def parse_args() -> argparse.Namespace:
@@ -62,7 +66,12 @@ def atomic_json(path: Path, value: dict) -> None:
 def atomic_state(path: Path, times: np.ndarray, power: np.ndarray) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
     with temporary.open("wb") as handle:
-        np.savez_compressed(handle, times=times, power=power)
+        np.savez_compressed(
+            handle,
+            times=times,
+            power=power,
+            processing_version=np.asarray(PROCESSING_VERSION),
+        )
     os.replace(temporary, path)
 
 
@@ -72,6 +81,11 @@ def load_state(path: Path, n_range: int) -> tuple[np.ndarray, np.ndarray]:
 
     try:
         with np.load(path) as state:
+            version = int(state["processing_version"])
+            if version != PROCESSING_VERSION:
+                raise ValueError(
+                    f"processing version {version} is not {PROCESSING_VERSION}"
+                )
             times = state["times"].astype(np.int64, copy=False)
             power = state["power"].astype(np.float32, copy=False)
         if power.ndim != 2 or power.shape[1] != n_range or len(times) != len(power):
@@ -88,19 +102,53 @@ def process_time_bin(
     channels: list[str],
     averages: int,
 ) -> np.ndarray:
-    channel_powers = []
+    lpf = mc.fir_lowpass_hann(fc=20e3, fs=FS, num_taps=FIR_TAPS)
+    decimated_indices = np.arange(IPP_SAMPLES // DECIMATION) * DECIMATION
+    coherent_voltage = {
+        channel: np.zeros(IPP_SAMPLES // DECIMATION, dtype=np.complex64)
+        for channel in channels
+    }
     first_sample = unix_time * FS + OFFSET
 
-    for channel in channels:
-        ipp_powers = []
-        for ipp_index in range(averages):
-            sample = first_sample + ipp_index * IPP_SAMPLES
-            voltage = reader.read_vector_c81d(sample, IPP_SAMPLES, channel) - mc.dc_offset
-            power = np.abs(voltage) ** 2
-            ipp_powers.append(power.reshape(-1, DECIMATION).mean(axis=1))
-        channel_powers.append(np.mean(ipp_powers, axis=0))
+    for ipp_index in range(averages):
+        sample = first_sample + ipp_index * IPP_SAMPLES
+        tx_voltage = (
+            reader.read_vector_c81d(
+                sample, IPP_SAMPLES, TX_REFERENCE_CHANNEL
+            )
+            - mc.dc_offset
+        )
+        tx_phase = np.angle(np.mean(tx_voltage[:TX_REFERENCE_SAMPLES]))
 
+        for channel in channels:
+            voltage = (
+                tx_voltage.copy()
+                if channel == TX_REFERENCE_CHANNEL
+                else reader.read_vector_c81d(sample, IPP_SAMPLES, channel)
+                - mc.dc_offset
+            )
+            voltage[:GROUND_CLUTTER_SAMPLES] = 0.0
+            filtered = np.convolve(
+                np.exp(-1j * tx_phase) * voltage,
+                lpf,
+                mode="same",
+            )
+            coherent_voltage[channel] += filtered[decimated_indices]
+
+    channel_powers = [
+        np.abs(coherent_voltage[channel] / averages) ** 2
+        for channel in channels
+    ]
     return np.mean(channel_powers, axis=0).astype(np.float32)
+
+
+def range_vector_km(n_range: int) -> np.ndarray:
+    raw_indices = np.arange(n_range, dtype=np.float64) * DECIMATION
+    return (
+        (raw_indices - TX_CENTER_RAW_SAMPLES)
+        * constants.c
+        / (2.0 * FS * 1_000.0)
+    )
 
 
 def plot_rti(
@@ -109,16 +157,11 @@ def plot_rti(
     output_path: Path,
     maximum_range_km: float,
     title: str,
-    snr_min_db: float,
-    snr_max_db: float,
+    display_min_db: float,
+    display_max_db: float,
     fixed_noise_power: float | None = None,
 ) -> None:
-    range_km = (
-        np.arange(power.shape[1], dtype=np.float64)
-        * DECIMATION
-        * constants.c
-        / (2.0 * FS * 1_000.0)
-    )
+    range_km = range_vector_km(power.shape[1])
     mask = range_km <= maximum_range_km
     noise_mask = (range_km >= NOISE_RANGE_KM[0]) & (range_km <= NOISE_RANGE_KM[1])
     if fixed_noise_power is None:
@@ -126,11 +169,13 @@ def plot_rti(
     else:
         noise_power = np.full(power.shape[0], fixed_noise_power, dtype=np.float64)
     noise_power = np.maximum(noise_power, 1e-20)
-    signal_power = power[:, mask] - noise_power[:, np.newaxis]
-    snr_linear = np.maximum(signal_power / noise_power[:, np.newaxis], 1e-20)
-    snr_db = (10.0 * np.log10(snr_linear)).T
-    snr_db = np.maximum(snr_db, snr_min_db)
-    finite = snr_db[np.isfinite(snr_db)]
+    power_ratio = np.maximum(
+        power[:, mask] / noise_power[:, np.newaxis],
+        1e-20,
+    )
+    power_ratio_db = (10.0 * np.log10(power_ratio)).T
+    power_ratio_db = np.maximum(power_ratio_db, display_min_db)
+    finite = power_ratio_db[np.isfinite(power_ratio_db)]
     if finite.size == 0:
         raise RuntimeError("RTI contains no finite samples")
 
@@ -140,11 +185,11 @@ def plot_rti(
     mesh = axis.pcolormesh(
         dates,
         range_km[mask],
-        snr_db,
+        power_ratio_db,
         cmap="plasma",
         shading="auto",
-        vmin=snr_min_db,
-        vmax=snr_max_db,
+        vmin=display_min_db,
+        vmax=display_max_db,
         rasterized=True,
     )
     axis.set_ylim(0, maximum_range_km)
@@ -159,7 +204,7 @@ def plot_rti(
     axis.grid(color="#ffffff", alpha=0.07, linewidth=0.6)
 
     colorbar = figure.colorbar(mesh, ax=axis, pad=0.015)
-    colorbar.set_label("Quick-look SNR (dB)", color="#b7c5d9")
+    colorbar.set_label("Power / background (dB)", color="#b7c5d9")
     colorbar.ax.tick_params(colors="#8fa1ba")
     colorbar.outline.set_edgecolor("#314563")
     figure.tight_layout()
@@ -243,12 +288,7 @@ def main() -> None:
     )
     recent = times >= times[-1] - 30 * 60
     if np.count_nonzero(recent) >= 2:
-        range_km = (
-            np.arange(power.shape[1], dtype=np.float64)
-            * DECIMATION
-            * constants.c
-            / (2.0 * FS * 1_000.0)
-        )
+        range_km = range_vector_km(power.shape[1])
         background_mask = (
             (range_km >= THIRTY_MINUTE_NOISE_RANGE_KM[0])
             & (range_km <= THIRTY_MINUTE_NOISE_RANGE_KM[1])
@@ -262,7 +302,7 @@ def main() -> None:
             output_dir / "latest_rti_30m_mesosphere.png",
             200.0,
             "Ramfjordmoen MF radar · latest 30 minutes · 0–200 km",
-            THIRTY_MINUTE_SNR_MIN_DB,
+            THIRTY_MINUTE_POWER_RATIO_MIN_DB,
             20.0,
             fixed_noise_power=thirty_minute_noise_power,
         )
@@ -282,18 +322,25 @@ def main() -> None:
         "cadence_seconds": args.cadence,
         "averaged_ipps": args.averages,
         "channels": args.channels,
+        "processing_version": PROCESSING_VERSION,
+        "integration": "transmit_phase_referenced_coherent_voltage",
+        "fir_cutoff_hz": 20_000,
+        "fir_taps": FIR_TAPS,
         "range_resolution_km": DECIMATION * constants.c / (2.0 * FS * 1_000.0),
+        "tx_center_raw_samples": TX_CENTER_RAW_SAMPLES,
         "noise_range_km": list(NOISE_RANGE_KM),
         "noise_percentile": NOISE_PERCENTILE,
-        "full_range_snr_limits_db": [-3.0, 35.0],
-        "mesosphere_snr_limits_db": [-3.0, 20.0],
+        "display_quantity": "10log10(power/background_power)",
+        "full_range_power_ratio_limits_db": [-3.0, 35.0],
+        "mesosphere_power_ratio_limits_db": [-3.0, 20.0],
         "mesosphere_30m_time_bins": int(np.count_nonzero(recent)),
         "mesosphere_30m_noise_method": "mean_power_over_time_and_range",
         "mesosphere_30m_noise_range_km": list(THIRTY_MINUTE_NOISE_RANGE_KM),
         "mesosphere_30m_noise_power": thirty_minute_noise_power,
-        "mesosphere_30m_snr_limits_db": [THIRTY_MINUTE_SNR_MIN_DB, 20.0],
-        "mesosphere_30m_incoherent_power_looks": INCOHERENT_POWER_LOOKS,
-        "mesosphere_30m_detection_gain_db": INCOHERENT_DETECTION_GAIN_DB,
+        "mesosphere_30m_power_ratio_limits_db": [
+            THIRTY_MINUTE_POWER_RATIO_MIN_DB,
+            20.0,
+        ],
     }
     atomic_json(output_dir / "rti_status.json", status)
     print(
