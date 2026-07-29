@@ -126,6 +126,7 @@ def plot_rti(
     signal_power = power[:, mask] - noise_power[:, np.newaxis]
     snr_linear = np.maximum(signal_power / noise_power[:, np.newaxis], 1e-20)
     snr_db = (10.0 * np.log10(snr_linear)).T
+    snr_db = np.maximum(snr_db, snr_min_db)
     finite = snr_db[np.isfinite(snr_db)]
     if finite.size == 0:
         raise RuntimeError("RTI contains no finite samples")
@@ -258,7 +259,7 @@ def main() -> None:
             output_dir / "latest_rti_30m_mesosphere.png",
             200.0,
             "Ramfjordmoen MF radar · latest 30 minutes · 0–200 km",
-            -3.0,
+            0.0,
             20.0,
             fixed_noise_power=thirty_minute_noise_power,
         )
@@ -287,6 +288,7 @@ def main() -> None:
         "mesosphere_30m_noise_method": "mean_power_over_time_and_range",
         "mesosphere_30m_noise_range_km": list(THIRTY_MINUTE_NOISE_RANGE_KM),
         "mesosphere_30m_noise_power": thirty_minute_noise_power,
+        "mesosphere_30m_snr_limits_db": [0.0, 20.0],
     }
     atomic_json(output_dir / "rti_status.json", status)
     print(

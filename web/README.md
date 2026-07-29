@@ -17,7 +17,8 @@ color scale is fixed at -3 to 20 dB.
 
 The latest-30-minute 0–200 km RTI instead uses one scalar noise power: the
 arithmetic mean power over the entire 30-minute interval and all 30–50 km range
-bins.
+bins. It has no coherent processing gain, so displayed SNR is floored at 0 dB
+and uses a fixed 0 to 20 dB color scale.
 
 `publish_monitor.py` collects receiver telemetry and publishes the two plots
 and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in
