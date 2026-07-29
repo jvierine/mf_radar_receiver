@@ -120,8 +120,14 @@ def disk_rows() -> list[dict]:
 
 
 def newest_file(directory: Path, pattern: str) -> Path | None:
-    files = list(directory.glob(pattern))
-    return max(files, key=lambda path: path.stat().st_mtime) if files else None
+    candidates = []
+    for path in directory.glob(pattern):
+        try:
+            candidates.append((path.stat().st_mtime, path))
+        except FileNotFoundError:
+            # Digital RF files can be atomically renamed while telemetry is read.
+            continue
+    return max(candidates)[1] if candidates else None
 
 
 def acquisition_status(raw_dir: Path) -> tuple[dict, float, int]:
@@ -131,7 +137,7 @@ def acquisition_status(raw_dir: Path) -> tuple[dict, float, int]:
     for channel in CHANNELS:
         channel_dir = raw_dir / channel
         date_dirs = sorted(path for path in channel_dir.glob("20*") if path.is_dir())
-        latest = newest_file(date_dirs[-1], "*.h5") if date_dirs else None
+        latest = newest_file(date_dirs[-1], "rf@*.h5") if date_dirs else None
         age = max(0.0, now - latest.stat().st_mtime) if latest else 1e12
         channels[channel] = {"acquisition_age_seconds": age}
         ages.append(age)
