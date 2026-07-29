@@ -381,7 +381,9 @@ def extract_detections_for_interval(
         read_end   = min(read_start + int(READ_DT * 1e6), t1_us)
         t_mid_unix = 0.5 * (read_start + read_end) / 1e6
 
-        dd = dmt.read(read_start, read_end)
+        # DigitalMetadataReader uses an inclusive upper bound. Subtract one
+        # sample so records on minute boundaries are not processed twice.
+        dd = dmt.read(read_start, read_end - 1)
 
         for k in dd.keys():
             if not all(

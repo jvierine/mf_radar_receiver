@@ -316,7 +316,10 @@ def selection_funnel(
 
     for read_start in np.arange(t0_us, t1_us, int(winds.READ_DT * 1e6)):
         read_end = min(read_start + int(winds.READ_DT * 1e6), t1_us)
-        for record in metadata_reader.read(read_start, read_end).values():
+        for record in metadata_reader.read(
+            read_start,
+            read_end - 1,
+        ).values():
             if not all(
                 name in record
                 for name in ("rdi1", "rdi3", "rdi4", "rvec", "fvec")
