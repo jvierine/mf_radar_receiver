@@ -26,3 +26,10 @@ detection gain from reduced variance, not an increase in mean physical SNR.
 and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in
 `systemd/` refreshes the products every five minutes. Static site files are
 deployed from this directory and are not overwritten by the receiver.
+
+The realtime wind service also produces two dense, unfiltered fitted-Doppler
+RTIs for the latest 30 minutes: 50–200 km and 75–125 km. Every two-second
+time–range cell is fitted independently on each dipole using a centered
+one-second unit-RMS complex-voltage segment. The channel with the strongest
+sinusoid fit is displayed. Both plots use a fixed monostatic radial-velocity
+scale of -200 to +200 m/s; noise-only cells are deliberately retained.

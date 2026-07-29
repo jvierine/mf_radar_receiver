@@ -30,6 +30,18 @@ const plots = [
     label: "90 / 100 / 110 / 120 km · latest 30 min",
     file: "latest_altitude_cuts_30m.png",
   },
+  {
+    id: "doppler_dense_full",
+    title: "Dense fitted Doppler",
+    label: "Every cell · latest 30 min · 50–200 km",
+    file: "latest_doppler_30m_50_200.png",
+  },
+  {
+    id: "doppler_dense_focused",
+    title: "Dense fitted Doppler detail",
+    label: "Every cell · latest 30 min · 75–125 km",
+    file: "latest_doppler_30m_75_125.png",
+  },
 ];
 
 const dialog = document.querySelector("#plot-dialog");

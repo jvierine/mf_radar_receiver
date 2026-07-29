@@ -188,6 +188,54 @@
           <span>±2 km slabs · 30-minute window</span>
         </footer>
       </article>
+
+      <article class="plot-card selected-rti-card" data-plot="doppler_dense_full">
+        <header>
+          <div>
+            <span class="channel-id">Dense Doppler · latest 30 minutes</span>
+            <h3>Every fitted cell · 50–200 km</h3>
+          </div>
+          <span class="freshness" id="doppler_dense_full-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="5" aria-label="Open dense fitted-Doppler RTI from 50 to 200 kilometres">
+          <img id="doppler_dense_full-image" src="latest_doppler_30m_50_200.png" alt="Latest 30-minute fitted-Doppler RTI for every cell from 50 to 200 kilometres">
+        </button>
+        <p class="plot-method">
+          A one-second, unit-RMS-normalized complex-sinusoid fit is performed
+          for every two-second time–range cell independently on dipoles 1, 3,
+          and 4. The channel with the highest fitted sinusoid SNR supplies the
+          displayed monostatic velocity, using
+          v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
+          or wind-continuity gate is applied, so noise-only cells also return
+          bounded fits. Color is fixed at −200…+200 m/s.
+        </p>
+        <footer>
+          <time id="doppler_dense_full-time">Awaiting plot metadata</time>
+          <span>Every cell · 50–200 km · ±200 m/s</span>
+        </footer>
+      </article>
+
+      <article class="plot-card selected-rti-card" data-plot="doppler_dense_focused">
+        <header>
+          <div>
+            <span class="channel-id">Dense Doppler detail · latest 30 minutes</span>
+            <h3>Every fitted cell · 75–125 km</h3>
+          </div>
+          <span class="freshness" id="doppler_dense_focused-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="6" aria-label="Open dense fitted-Doppler RTI from 75 to 125 kilometres">
+          <img id="doppler_dense_focused-image" src="latest_doppler_30m_75_125.png" alt="Latest 30-minute fitted-Doppler RTI for every cell from 75 to 125 kilometres">
+        </button>
+        <p class="plot-method">
+          The focused mesospheric view uses exactly the same unfiltered fits
+          as the 50–200 km panel. It changes only the displayed range interval;
+          the seismic color scale remains fixed at −200…+200 m/s.
+        </p>
+        <footer>
+          <time id="doppler_dense_focused-time">Awaiting plot metadata</time>
+          <span>Every cell · 75–125 km · ±200 m/s</span>
+        </footer>
+      </article>
     </section>
 
     <section class="processing-note" aria-labelledby="processing-title">
