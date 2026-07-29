@@ -30,6 +30,7 @@ def process_block(d, dmw, i0):
 
     Returns True on success, False if the block could not be read.
     """
+    rtis = []
     rdis = []
     tvec = rvec = fvec = None
 
@@ -43,6 +44,7 @@ def process_block(d, dmw, i0):
         except Exception as e:
             logging.error("channel %s block %d: %s", ch, i0, e)
             return False
+        rtis.append(RTI)
         rdis.append(RDI)
 
     # Write reduced data as Digital RF metadata
@@ -51,6 +53,10 @@ def process_block(d, dmw, i0):
         "rdi2": rdis[1],
         "rdi3": rdis[2],
         "rdi4": rdis[3],
+        "rti1": rtis[0],
+        "rti2": rtis[1],
+        "rti3": rtis[2],
+        "rti4": rtis[3],
         "rvec": rvec,
         "tvec": tvec,
         "fvec": fvec,

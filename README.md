@@ -20,15 +20,34 @@ coherence is at least 0.80 and its interferometric geometric altitude is
 between 60 and 150 km.
 
 The averaged cross-spectral phases, rather than individual FFT-pixel products,
-are passed to the interferometric angle-of-arrival solver. Wind fits use SNR
-times squared coherence as their weight. Results are written separately under
-`/data2/products/winds/3ch_coherent_2day/` so they cannot be mixed with older
-products that did not have a valid coherence gate.
+are passed to the interferometric angle-of-arrival solver. Its distinct
+grating-lobe candidates are resolved using the previous accepted
+height-resolved mean wind. A lobe is rejected when its observed radial velocity
+differs from that wind's predicted radial velocity by more than 40 m/s.
 
-This is deliberately a first-cut filter. Three long dipole baselines have
-grating-lobe ambiguity, and local Doppler-range averaging is only a small
-ensemble. The output must be validated against manually inspected intervals
-before it is treated as a production wind product.
+For each accepted AoA, the ch1, ch3, and ch4 complex time series are phase
+steered and coherently added. Doppler is then estimated by a bounded
+least-squares complex-sinusoid fit. The hard radial-velocity interval is
+`[-300, 300] m/s`, which keeps the fit unaliased. The fitted sinusoid must also
+pass the high-SNR threshold.
+
+The intermediate echo-snippet rows contain timestamp, relative ENU position,
+geometric altitude, three direction cosines, slant range, geographic
+latitude/longitude/altitude, mean coherence, phase closure, AoA phase residual,
+AoA match, fitted Doppler and radial velocity, beamformed SNR, range-gate
+index, and mean-wind continuity residual. The timestamp and range-gate index
+reference the retained complex RTI snippet in Digital RF metadata.
+
+Wind fits use fitted radial velocities with SNR times squared coherence as
+their weight. They are rejected automatically unless there are enough echoes,
+at least three occupied azimuth sectors, a well-conditioned inversion, and
+acceptable robust velocity residuals. There is no visual or manual acceptance
+step; failed bins contain no wind estimate.
+
+Results are written separately under
+`/data2/products/winds/3ch_coherent_2day/`. Each window includes zonal and
+meridional wind products plus one RTI showing only the automatically selected
+pixels used by the wind processor.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  

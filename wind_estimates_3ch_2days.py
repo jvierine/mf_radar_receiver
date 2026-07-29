@@ -6,6 +6,7 @@ import h5py
 import os
 import datetime as dt
 from scipy.ndimage import uniform_filter
+from scipy.optimize import minimize_scalar
 
 import jcoord
 import mf_conf as mc
@@ -42,14 +43,29 @@ HEIGHT_DET_MAX = 150
 DOPPLER_MAX_HZ = 2.0
 COHERENCE_MIN  = 0.80
 COHERENCE_WINDOW = (3, 3)  # Doppler bins x range gates
+PHASE_CLOSURE_MAX = 0.35
+AOA_PHASE_RESIDUAL_MAX = 0.35
+WIND_CONTINUITY_SCALE_MS = 20.0
+WIND_CONTINUITY_MAX_MS = 40.0
 
 DOPPLER_SIGN  = -1
 DOPPLER_TO_MS = mc.wavelength / 2.0
+MAX_RADIAL_VELOCITY_MS = 300.0
+MAX_FIT_DOPPLER_HZ = 2.0 * MAX_RADIAL_VELOCITY_MS / mc.wavelength
+BEAMFORMED_SNR_MIN = SNR_THRESH
 
 MIN_POINTS_PER_HEIGHT_BIN = 8
+MIN_AZIMUTH_SECTORS = 3
+AZIMUTH_SECTORS = 8
+MAX_GEOMETRY_CONDITION = 10.0
+MIN_VELOCITY_RESIDUAL_MS = 10.0
 
 USE_BACKGROUND_REJECTION = True
 BG_STRONG_FRAC_MAX       = 0.05
+
+RADAR_LAT = 69.58204
+RADAR_LON = 19.22283
+RADAR_ALT_M = 0.0
 
 
 
@@ -80,6 +96,78 @@ def antenna_coordinates_ecef():
             mc.antenna_coords[i][2],
         )
     return coord
+
+
+def fit_complex_sinusoid(times, voltage):
+    """
+    Fit voltage = amplitude * exp(2j*pi*doppler*times) + residual.
+
+    A dense coarse search prevents a bounded scalar optimizer from selecting
+    the wrong local minimum. The hard radial-velocity bound also keeps the fit
+    inside the unaliased region of the coherently integrated time series.
+    """
+    times = np.asarray(times, dtype=np.float64)
+    voltage = np.asarray(voltage, dtype=np.complex128)
+    frequencies = np.linspace(-MAX_FIT_DOPPLER_HZ, MAX_FIT_DOPPLER_HZ, 401)
+    basis = np.exp(-2j * np.pi * frequencies[:, None] * times[None, :])
+    coarse_score = np.abs(basis @ voltage) ** 2
+    best = int(np.argmax(coarse_score))
+    step = frequencies[1] - frequencies[0]
+    lower = max(-MAX_FIT_DOPPLER_HZ, frequencies[best] - step)
+    upper = min(MAX_FIT_DOPPLER_HZ, frequencies[best] + step)
+
+    def residual_power(frequency):
+        model = np.exp(2j * np.pi * frequency * times)
+        amplitude = np.vdot(model, voltage) / np.vdot(model, model)
+        residual = voltage - amplitude * model
+        return float(np.mean(np.abs(residual) ** 2))
+
+    result = minimize_scalar(
+        residual_power,
+        bounds=(lower, upper),
+        method="bounded",
+        options={"xatol": 1e-5},
+    )
+    frequency = float(result.x)
+    model = np.exp(2j * np.pi * frequency * times)
+    amplitude = np.vdot(model, voltage) / np.vdot(model, model)
+    residual = voltage - amplitude * model
+    noise_power = max(float(np.mean(np.abs(residual) ** 2)), 1e-30)
+    snr = float(np.abs(amplitude) ** 2 / noise_power)
+    return frequency, amplitude, snr
+
+
+def beamform_three_dipoles(rti1, rti3, rti4, pos_diffs, east, north, up):
+    """Steer ch1/ch3/ch4 to an AoA and add their complex voltages coherently."""
+    direction_ecef = np.asarray(
+        jcoord.enu2ecef(RADAR_LAT, RADAR_LON, RADAR_ALT_M, east, north, up)
+    ).reshape(3)
+    klen = 2.0 * np.pi / mc.wavelength
+    phase_ch1 = klen * np.dot(pos_diffs[0], direction_ecef)
+    phase_ch4 = klen * np.dot(-pos_diffs[2], direction_ecef)
+    return (
+        rti1 * np.exp(1j * phase_ch1)
+        + rti3
+        + rti4 * np.exp(1j * phase_ch4)
+    ) / 3.0
+
+
+def geographic_position(east_km, north_km, up_km):
+    """Convert an ENU echo location relative to the radar to geodetic."""
+    radar_ecef = np.asarray(
+        jcoord.geodetic2ecef(RADAR_LAT, RADAR_LON, RADAR_ALT_M)
+    ).reshape(3)
+    offset_ecef = np.asarray(
+        jcoord.enu2ecef(
+            RADAR_LAT,
+            RADAR_LON,
+            RADAR_ALT_M,
+            east_km * 1_000.0,
+            north_km * 1_000.0,
+            up_km * 1_000.0,
+        )
+    ).reshape(3)
+    return jcoord.ecef2geodetic(*(radar_ecef + offset_ecef))
 
 
 def weighted_lstsq(A, y, weights=None):
@@ -124,6 +212,86 @@ def three_dipole_coherence(rdi1, rdi3, rdi4):
     return (xc13, xc14, xc34), coherence
 
 
+def phase_closure(xc13, xc14, xc34):
+    """Absolute ch1-ch3, ch1-ch4, ch3-ch4 phase-closure error."""
+    return np.abs(np.angle(xc13 * np.conj(xc14) * xc34))
+
+
+def prior_wind_at_height(prior_profile, height_km):
+    """Return the nearest finite prior (zonal, meridional) wind estimate."""
+    if prior_profile is None or len(prior_profile) == 0:
+        return None
+    finite = np.isfinite(prior_profile[:, 2]) & np.isfinite(prior_profile[:, 3])
+    if not np.any(finite):
+        return None
+    rows = prior_profile[finite]
+    nearest = rows[np.argmin(np.abs(rows[:, 1] - height_km))]
+    return nearest[2], nearest[3]
+
+
+def choose_continuous_aoa(
+    xc,
+    pos_diffs,
+    range_km,
+    radial_velocity_ms,
+    prior_profile,
+):
+    """
+    Resolve grating-lobe ambiguity using the preceding mean-wind profile.
+
+    On startup, choose the strongest phase-consistent altitude-valid lobe.
+    Afterwards, reject lobes whose measured radial velocity is inconsistent
+    with the previous accepted zonal and meridional wind.
+    """
+    candidates = ih.aoa_candidates(
+        xc, pos_diffs, wavelength=mc.wavelength
+    )
+    accepted = []
+    for east, north, up, phase_residual, match in candidates:
+        height_km = range_km * up
+        if not HEIGHT_DET_MIN <= height_km <= HEIGHT_DET_MAX:
+            continue
+        if phase_residual > AOA_PHASE_RESIDUAL_MAX:
+            continue
+
+        prior = prior_wind_at_height(prior_profile, height_km)
+        if prior is None:
+            continuity_error = np.nan
+            cost = (phase_residual / AOA_PHASE_RESIDUAL_MAX) ** 2 + (1.0 - match)
+        else:
+            predicted_velocity = prior[0] * east + prior[1] * north
+            continuity_error = abs(radial_velocity_ms - predicted_velocity)
+            if continuity_error > WIND_CONTINUITY_MAX_MS:
+                continue
+            cost = (
+                (phase_residual / AOA_PHASE_RESIDUAL_MAX) ** 2
+                + (continuity_error / WIND_CONTINUITY_SCALE_MS) ** 2
+                + (1.0 - match)
+            )
+        accepted.append(
+            (cost, east, north, up, phase_residual, match, continuity_error)
+        )
+
+    if not accepted:
+        return None
+    return min(accepted, key=lambda row: row[0])[1:]
+
+
+def geometry_is_acceptable(A, weights):
+    """Require azimuthal diversity and a well-conditioned wind inversion."""
+    azimuth = np.mod(np.arctan2(A[:, 1], A[:, 0]), 2.0 * np.pi)
+    sector_width = 2.0 * np.pi / AZIMUTH_SECTORS
+    sectors = np.floor(azimuth / sector_width).astype(int)
+    if len(np.unique(sectors)) < MIN_AZIMUTH_SECTORS:
+        return False
+
+    Aw = A * np.sqrt(weights)[:, None]
+    singular_values = np.linalg.svd(Aw, compute_uv=False)
+    if len(singular_values) < 2 or singular_values[-1] <= 0:
+        return False
+    return singular_values[0] / singular_values[-1] <= MAX_GEOMETRY_CONDITION
+
+
 def fit_horizontal_wind(det, min_points=8):
     """
     Least-squares horizontal wind from radial velocities.
@@ -133,22 +301,53 @@ def fit_horizontal_wind(det, min_points=8):
         1  x km        5  snr       9  range km
         2  y km        6  los_u     10 doppler Hz
         3  height km   7  los_v       11 coherence
+                                      12 phase closure
+                                      13 AoA phase residual
+                                      14 AoA match
+                                      15 continuity residual
     """
     if det.shape[0] < min_points:
         return np.nan, np.nan, det.shape[0]
-    A       = det[:, [6, 7]]
-    y       = det[:, 4]
+    A = det[:, [6, 7]]
+    y = det[:, 4]
     weights = np.clip(det[:, 5], 1, None) * np.clip(det[:, 11], 0, 1) ** 2
-    try:
-        U, V = weighted_lstsq(A, y, weights)
-    except np.linalg.LinAlgError:
-        return np.nan, np.nan, det.shape[0]
-    return U, V, det.shape[0]
+    keep = np.ones(len(det), dtype=bool)
+
+    for _ in range(3):
+        count = np.count_nonzero(keep)
+        if count < min_points or not geometry_is_acceptable(A[keep], weights[keep]):
+            return np.nan, np.nan, count
+        try:
+            U, V = weighted_lstsq(A[keep], y[keep], weights[keep])
+        except np.linalg.LinAlgError:
+            return np.nan, np.nan, count
+
+        residual = y - A @ np.array([U, V])
+        center = np.median(residual[keep])
+        mad = np.median(np.abs(residual[keep] - center))
+        cutoff = max(MIN_VELOCITY_RESIDUAL_MS, 4.0 * 1.4826 * mad)
+        updated = keep & (np.abs(residual - center) <= cutoff)
+        if np.array_equal(updated, keep):
+            return U, V, count
+        keep = updated
+
+    count = np.count_nonzero(keep)
+    if count < min_points or not geometry_is_acceptable(A[keep], weights[keep]):
+        return np.nan, np.nan, count
+    U, V = weighted_lstsq(A[keep], y[keep], weights[keep])
+    return U, V, count
 
 
 
 
-def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_unix):
+def extract_detections_for_interval(
+    dmt,
+    phasecal,
+    pos_diffs,
+    start_unix,
+    end_unix,
+    prior_wind_profile=None,
+):
     """
     Extract high-coherence three-dipole detections from start_unix to end_unix.
 
@@ -157,6 +356,10 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
         1  x km        5  snr       9  range km
         2  y km        6  los_u     10 doppler Hz
         3  height km   7  los_v       11 coherence
+                                      12 phase closure
+                                      13 AoA phase residual
+                                      14 AoA match
+                                      15 continuity residual
     """
     detections = []
     t0_us = int(start_unix * 1e6)
@@ -169,12 +372,21 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
         dd = dmt.read(read_start, read_end)
 
         for k in dd.keys():
+            if not all(
+                name in dd[k]
+                for name in ("rti1", "rti3", "rti4", "tvec")
+            ):
+                continue
             RDI1 = dd[k]["rdi1"] * np.exp(1j * phasecal[0])
             RDI3 = dd[k]["rdi3"] * np.exp(1j * phasecal[2])
             RDI4 = dd[k]["rdi4"] * np.exp(1j * phasecal[3])
+            RTI1 = dd[k]["rti1"] * np.exp(1j * phasecal[0])
+            RTI3 = dd[k]["rti3"] * np.exp(1j * phasecal[2])
+            RTI4 = dd[k]["rti4"] * np.exp(1j * phasecal[3])
 
             rvec = dd[k]["rvec"]
             fvec = dd[k]["fvec"]
+            tvec = dd[k]["tvec"]
 
             try:
                 ri0 = np.where(rvec > NOISER0)[0][0]
@@ -202,15 +414,31 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
                 good_cell = np.ones_like(snr, dtype=bool)
 
             cross_spectra, coherence = three_dipole_coherence(RDI1, RDI3, RDI4)
-            idx = np.where(
+            closure = phase_closure(*cross_spectra)
+            candidate_idx = np.where(
                 (snr > SNR_THRESH)
                 & (rr > RANGE_MIN) & (rr < RANGE_MAX)
-                & (np.abs(ff) < DOPPLER_MAX_HZ)
+                & (np.abs(ff) <= MAX_FIT_DOPPLER_HZ)
                 & good_cell
                 & (coherence >= COHERENCE_MIN)
+                & (closure <= PHASE_CLOSURE_MAX)
             )
-            if len(idx[0]) == 0:
+            if len(candidate_idx[0]) == 0:
                 continue
+
+            # Retain only the strongest locator pixel at each range gate. The
+            # final Doppler comes from the sinusoid fit, not this FFT bin.
+            selected = []
+            candidate_quality = (
+                snr[candidate_idx] * coherence[candidate_idx] ** 2
+            )
+            for range_index in np.unique(candidate_idx[1]):
+                positions = np.flatnonzero(candidate_idx[1] == range_index)
+                selected.append(positions[np.argmax(candidate_quality[positions])])
+            selected = np.asarray(selected, dtype=int)
+            doppler_indices = candidate_idx[0][selected]
+            range_indices = candidate_idx[1][selected]
+            idx = (doppler_indices, range_indices)
 
             xc13 = cross_spectra[0][idx].flatten()
             xc14 = cross_spectra[1][idx].flatten()
@@ -220,32 +448,71 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
             ffs  = ff[idx].flatten()
             snrs = snr[idx].flatten()
             coherences = coherence[idx].flatten()
+            closures = closure[idx].flatten()
 
             for mi in range(len(ffs)):
-                los_u, los_v, los_w = ih.aoa(
+                locator_vr = DOPPLER_SIGN * DOPPLER_TO_MS * ffs[mi]
+                solution = choose_continuous_aoa(
                     [xc13[mi], xc14[mi], xc34[mi]],
                     pos_diffs,
-                    wavelength=mc.wavelength,
+                    rrs[mi],
+                    locator_vr,
+                    prior_wind_profile,
                 )
+                if solution is None:
+                    continue
+                (
+                    los_u,
+                    los_v,
+                    los_w,
+                    phase_residual,
+                    aoa_match,
+                    continuity_residual,
+                ) = solution
 
                 x = rrs[mi] * los_u
                 y = rrs[mi] * los_v
                 z = rrs[mi] * los_w
-
-                if z < HEIGHT_DET_MIN or z > HEIGHT_DET_MAX:
+                beamformed = beamform_three_dipoles(
+                    RTI1[:, range_indices[mi]],
+                    RTI3[:, range_indices[mi]],
+                    RTI4[:, range_indices[mi]],
+                    pos_diffs,
+                    los_u,
+                    los_v,
+                    los_w,
+                )
+                fitted_doppler, _, beamformed_snr = fit_complex_sinusoid(
+                    tvec, beamformed
+                )
+                if beamformed_snr < BEAMFORMED_SNR_MIN:
                     continue
+                vr = DOPPLER_SIGN * DOPPLER_TO_MS * fitted_doppler
 
-                vr = DOPPLER_SIGN * DOPPLER_TO_MS * ffs[mi]
+                prior = prior_wind_at_height(prior_wind_profile, z)
+                if prior is not None:
+                    predicted_velocity = prior[0] * los_u + prior[1] * los_v
+                    continuity_residual = abs(vr - predicted_velocity)
+                    if continuity_residual > WIND_CONTINUITY_MAX_MS:
+                        continue
+
+                latitude, longitude, geographic_altitude_m = geographic_position(
+                    x, y, z
+                )
 
                 detections.append([
-                    t_mid_unix, x, y, z,
-                    vr, snrs[mi],
+                    float(k) / 1e6, x, y, z,
+                    vr, beamformed_snr,
                     los_u, los_v, los_w,
-                    rrs[mi], ffs[mi], coherences[mi],
+                    rrs[mi], fitted_doppler, coherences[mi],
+                    closures[mi], phase_residual, aoa_match,
+                    continuity_residual,
+                    latitude, longitude, geographic_altitude_m / 1_000.0,
+                    range_indices[mi], snrs[mi],
                 ])
 
     if len(detections) == 0:
-        return np.empty((0, 12))
+        return np.empty((0, 21))
     return np.asarray(detections)
 
 
@@ -260,6 +527,60 @@ def estimate_wind_profile(det_block, block_start_unix):
         U, V, N = fit_horizontal_wind(det_block[m], min_points=MIN_POINTS_PER_HEIGHT_BIN)
         rows.append([block_center, h0, U, V, N])
     return np.asarray(rows)
+
+
+def latest_accepted_wind_profile(wind_rows):
+    """Return the newest finite wind estimate available at each height."""
+    if wind_rows is None or wind_rows.size == 0:
+        return None
+    rows = []
+    for height in np.unique(wind_rows[:, 1]):
+        candidates = wind_rows[
+            (wind_rows[:, 1] == height)
+            & np.isfinite(wind_rows[:, 2])
+            & np.isfinite(wind_rows[:, 3])
+        ]
+        if len(candidates):
+            rows.append(candidates[np.argmax(candidates[:, 0])])
+    return np.asarray(rows) if rows else None
+
+
+def plot_selected_rti(detections, window_start_unix, window_end_unix, plot_file):
+    """Plot only the automatically accepted pixels used by the wind fit."""
+    if detections is None or detections.size == 0:
+        return
+    mask = (
+        (detections[:, 0] >= window_start_unix)
+        & (detections[:, 0] < window_end_unix)
+    )
+    selected = detections[mask]
+    if len(selected) == 0:
+        return
+
+    snr_db = 10.0 * np.log10(np.maximum(selected[:, 5], 1e-20))
+    figure, axis = plt.subplots(figsize=(14, 5))
+    pixels = axis.scatter(
+        [unix_to_datetime(value) for value in selected[:, 0]],
+        selected[:, 9],
+        c=snr_db,
+        s=5,
+        marker="s",
+        linewidths=0,
+        cmap="plasma",
+        vmin=10,
+        vmax=30,
+        rasterized=True,
+    )
+    axis.set_title("Automatically selected wind-processing pixels")
+    axis.set_xlabel("Time UT")
+    axis.set_ylabel("One-way slant range (km)")
+    axis.set_ylim(RANGE_MIN, RANGE_MAX)
+    axis.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
+    axis.grid(alpha=0.2)
+    figure.colorbar(pixels, ax=axis).set_label("Beamformed sinusoid SNR (dB)")
+    figure.tight_layout()
+    figure.savefig(plot_file, dpi=180)
+    plt.close(figure)
 
 
 
@@ -358,6 +679,9 @@ def main():
         plot_file = os.path.join(
             OUTDIR, f"{date_tag}_mf_coherent_echo_winds_2day_3ch.png"
         )
+        selected_rti_file = os.path.join(
+            OUTDIR, f"{date_tag}_selected_wind_pixels_rti_2day_3ch.png"
+        )
 
         # Load saved progress for this window if it exists
         saved_winds = np.load(wind_file) if os.path.exists(wind_file) else None
@@ -382,8 +706,14 @@ def main():
             print(f"  Block {unix_to_datetime(block_start):%Y-%m-%d %H:%M} – "
                   f"{unix_to_datetime(block_end):%H:%M} UT", end="", flush=True)
 
+            prior_profile = latest_accepted_wind_profile(all_winds)
             det_block = extract_detections_for_interval(
-                dmt, phasecal, pos_diffs, block_start, block_end
+                dmt,
+                phasecal,
+                pos_diffs,
+                block_start,
+                block_end,
+                prior_wind_profile=prior_profile,
             )
             print(f"  →  {det_block.shape[0]} detections")
 
@@ -420,6 +750,12 @@ def main():
                 & (all_winds[:, 0] <  window_end)
             )
             plot_window(all_winds[mask], window_start, window_end, plot_file)
+            plot_selected_rti(
+                all_dets,
+                window_start,
+                window_end,
+                selected_rti_file,
+            )
         else:
             print("  No wind data for this window.")
 
