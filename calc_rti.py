@@ -20,7 +20,7 @@ TX_CENTER = 54         # TX pulse centre in decimated samples (range offset)
 NUM_TAPS  = 50         # FIR filter length
 
 # Range limits
-RANGE_MIN_KM = 50.0
+RANGE_MIN_KM = 0.0
 RANGE_MAX_KM = 200.0
 
 

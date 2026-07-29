@@ -13,12 +13,6 @@ const plots = [
     file: "latest_rti_48h_mesosphere.png",
   },
   {
-    id: "rti_mesosphere_30m",
-    title: "Mesosphere detail",
-    label: "Unfiltered quick-look · latest 30 min · 0–200 km",
-    file: "latest_rti_30m_mesosphere.png",
-  },
-  {
     id: "rti_selected",
     title: "Pixels accepted for wind processing",
     label: "Same altitude-cut echoes · latest 30 min",
@@ -31,10 +25,10 @@ const plots = [
     file: "latest_altitude_cuts_30m.png",
   },
   {
-    id: "doppler_dense_full",
-    title: "Dense fitted Doppler",
-    label: "Every cell · latest 30 min · 50–200 km",
-    file: "latest_doppler_30m_50_200.png",
+    id: "snr_doppler_dense",
+    title: "SNR and dense fitted Doppler",
+    label: "Two-second cadence · latest 30 min · 0–200 km",
+    file: "latest_snr_doppler_30m_50_200.png",
   },
 ];
 

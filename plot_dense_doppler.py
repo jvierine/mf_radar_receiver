@@ -124,7 +124,6 @@ def dense_doppler(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Return time, range, velocity, and selected-channel fit SNR arrays."""
     records = []
-    range_km = None
     start_us = int(start_unix * 1e6)
     end_us = int(end_unix * 1e6)
 
@@ -149,10 +148,7 @@ def dense_doppler(
             )
             if not np.any(mask):
                 continue
-            if range_km is None:
-                range_km = record_range[mask]
-            elif not np.allclose(range_km, record_range[mask]):
-                raise ValueError("range vector changed within interval")
+            selected_range = record_range[mask]
 
             channel_voltage = np.asarray(
                 [
@@ -180,6 +176,7 @@ def dense_doppler(
             records.append(
                 (
                     float(key) / 1e6 + 1.0,
+                    selected_range,
                     winds.DOPPLER_SIGN
                     * winds.DOPPLER_TO_MS
                     * best_frequency,
@@ -187,13 +184,27 @@ def dense_doppler(
                 )
             )
 
-    if not records or range_km is None:
+    if not records:
         raise RuntimeError("no complete metadata records in requested interval")
+    range_km = max((row[1] for row in records), key=len)
+    velocity = np.full((len(records), len(range_km)), np.nan)
+    fit_snr = np.full_like(velocity, np.nan)
+    for row_index, (_, record_range, record_velocity, record_snr) in enumerate(
+        records
+    ):
+        indices = np.searchsorted(range_km, record_range)
+        if (
+            np.any(indices >= len(range_km))
+            or not np.allclose(range_km[indices], record_range)
+        ):
+            raise ValueError("incompatible range vectors within interval")
+        velocity[row_index, indices] = record_velocity
+        fit_snr[row_index, indices] = record_snr
     return (
         np.asarray([row[0] for row in records]),
         range_km,
-        np.asarray([row[1] for row in records]),
-        np.asarray([row[2] for row in records]),
+        velocity,
+        fit_snr,
     )
 
 

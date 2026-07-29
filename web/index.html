@@ -110,34 +110,6 @@
         </footer>
       </article>
 
-      <article class="plot-card selected-rti-card" data-plot="rti_mesosphere_30m">
-        <header>
-          <div>
-            <span class="channel-id">Mesosphere · latest 30 minutes</span>
-            <h3>Unfiltered 0–200 km RTI</h3>
-          </div>
-          <span class="freshness" id="rti_mesosphere_30m-freshness">—</span>
-        </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open latest 30-minute mesospheric RTI">
-          <img id="rti_mesosphere_30m-image" src="latest_rti_30m_mesosphere.png" alt="Latest 30-minute range-time-intensity from 0 to 200 kilometres">
-        </button>
-        <p class="plot-method">
-          The unfiltered comparison field for the wind-selection RTI below.
-          It uses the same three-dipole coherent quick-look processing and
-          approximately 1.5 km one-way range spacing. Its two-second time
-          cadence is identical to the dense Doppler RTI. One background power
-          is the arithmetic mean across every time sample in this 30-minute
-          window and all range bins from 30–50 km. Color is
-          <code>10 log₁₀(P/Pbackground)</code> on a fixed −10…20 dB scale, so
-          ordinary samples below the interval mean remain visible. Negative
-          values mean below-background power—not negative physical SNR.
-        </p>
-        <footer>
-          <time id="rti_mesosphere_30m-time">Awaiting plot metadata</time>
-          <span>All echoes · 0–200 km · 2-second cadence</span>
-        </footer>
-      </article>
-
       <article class="plot-card selected-rti-card" data-plot="rti_selected">
         <header>
           <div>
@@ -146,7 +118,7 @@
           </div>
           <span class="freshness" id="rti_selected-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open selected wind-processing pixels RTI">
+        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open selected wind-processing pixels RTI">
           <img id="rti_selected-image" src="latest_selected_wind_pixels.png" alt="Range-time-intensity plot of pixels automatically selected for wind processing">
         </button>
         <p class="plot-method">
@@ -171,7 +143,7 @@
           </div>
           <span class="freshness" id="altitude_cuts-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open altitude-cut echo position plots">
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open altitude-cut echo position plots">
           <img id="altitude_cuts-image" src="latest_altitude_cuts_30m.png" alt="Echo positions and monostatic Doppler velocities at 90, 100, 110, and 120 kilometres altitude">
         </button>
         <p class="plot-method">
@@ -190,29 +162,31 @@
         </footer>
       </article>
 
-      <article class="plot-card selected-rti-card" data-plot="doppler_dense_full">
+      <article class="plot-card selected-rti-card" data-plot="snr_doppler_dense">
         <header>
           <div>
-            <span class="channel-id">Dense Doppler · latest 30 minutes</span>
-            <h3>Every fitted cell · 50–200 km</h3>
+            <span class="channel-id">SNR + dense Doppler · latest 30 minutes</span>
+            <h3>Synchronized two-second RTIs</h3>
           </div>
-          <span class="freshness" id="doppler_dense_full-freshness">—</span>
+          <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="5" aria-label="Open dense fitted-Doppler RTI from 50 to 200 kilometres">
-          <img id="doppler_dense_full-image" src="latest_doppler_30m_50_200.png" alt="Latest 30-minute fitted-Doppler RTI for every cell from 50 to 200 kilometres">
+        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
+          <img id="snr_doppler_dense-image" src="latest_snr_doppler_30m_50_200.png" alt="Synchronized two-second SNR and fitted-Doppler RTIs from 50 to 200 kilometres">
         </button>
         <p class="plot-method">
-          A one-second, unit-RMS-normalized complex-sinusoid fit is performed
-          for every two-second time–range cell independently on dipoles 1, 3,
-          and 4. The channel with the highest fitted sinusoid SNR supplies the
-          displayed monostatic velocity, using
+          Both panels use the same 30-minute window, two-second cadence, and
+          0–200 km range grid. The upper panel is power relative to the
+          interval-mean 30–50 km background on −10…20 dB. The lower panel fits
+          a one-second unit-RMS complex sinusoid independently on dipoles 1, 3,
+          and 4 for every cell. The strongest fit supplies the monostatic
+          velocity using
           v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
           or wind-continuity gate is applied, so noise-only cells also return
           bounded fits. Color is fixed at −200…+200 m/s.
         </p>
         <footer>
-          <time id="doppler_dense_full-time">Awaiting plot metadata</time>
-          <span>Every cell · 50–200 km · ±200 m/s</span>
+          <time id="snr_doppler_dense-time">Awaiting plot metadata</time>
+          <span>Two panels · 0–200 km · 2-second cadence</span>
         </footer>
       </article>
 
