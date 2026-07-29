@@ -15,7 +15,7 @@ const plots = [
   {
     id: "rti_selected",
     title: "Pixels accepted for wind processing",
-    label: "Automatic selection · 50–200 km",
+    label: "Automatic selection · 0–200 km",
     file: "latest_selected_wind_pixels.png",
   },
 ];
