@@ -5,6 +5,7 @@ import matplotlib.dates as mdates
 import h5py
 import os
 import datetime as dt
+from scipy.ndimage import uniform_filter
 
 import jcoord
 import mf_conf as mc
@@ -13,7 +14,7 @@ import image_help as ih
 
 
 
-OUTDIR = "/data2/products/winds/3ch_2day"
+OUTDIR = "/data2/products/winds/3ch_coherent_2day"
 os.makedirs(OUTDIR, exist_ok=True)
 
 # First date to process (inclusive, UTC midnight).
@@ -24,8 +25,8 @@ PROCESS_START = "2025-12-03"
 WIND_DT       = 10 * 60   # 10-minute wind blocks (seconds)
 PLOT_DURATION = 2          # days per plot
 HEIGHT_RES    = 1.5        # km
-HEIGHT_MIN    = 70
-HEIGHT_MAX    = 122
+HEIGHT_MIN    = 60
+HEIGHT_MAX    = 150
 
 READ_DT       = 60         # metadata chunk size, seconds
 
@@ -36,9 +37,11 @@ NOISE_FMIN    = 5
 SNR_THRESH    = 20
 RANGE_MIN     = 50
 RANGE_MAX     = 200
-HEIGHT_DET_MIN = 70
-HEIGHT_DET_MAX = 122
+HEIGHT_DET_MIN = 60
+HEIGHT_DET_MAX = 150
 DOPPLER_MAX_HZ = 2.0
+COHERENCE_MIN  = 0.80
+COHERENCE_WINDOW = (3, 3)  # Doppler bins x range gates
 
 DOPPLER_SIGN  = -1
 DOPPLER_TO_MS = mc.wavelength / 2.0
@@ -86,6 +89,41 @@ def weighted_lstsq(A, y, weights=None):
     return np.linalg.lstsq(A * w[:, None], y * w, rcond=None)[0]
 
 
+def local_mean(values, size=COHERENCE_WINDOW):
+    """Locally average a real or complex Doppler-range array."""
+    if np.iscomplexobj(values):
+        return (
+            uniform_filter(values.real, size=size, mode="nearest")
+            + 1j * uniform_filter(values.imag, size=size, mode="nearest")
+        )
+    return uniform_filter(values, size=size, mode="nearest")
+
+
+def three_dipole_coherence(rdi1, rdi3, rdi4):
+    """
+    Estimate normalized cross-spectral coherence on all dipole baselines.
+
+    A single complex FFT pixel gives unit coherence by construction. The local
+    3x3 average supplies nine Doppler-range looks and measures whether the
+    inter-antenna phase is stable around the candidate echo.
+    """
+    p1 = local_mean(np.abs(rdi1) ** 2)
+    p3 = local_mean(np.abs(rdi3) ** 2)
+    p4 = local_mean(np.abs(rdi4) ** 2)
+
+    xc13 = local_mean(rdi1 * np.conj(rdi3))
+    xc14 = local_mean(rdi1 * np.conj(rdi4))
+    xc34 = local_mean(rdi3 * np.conj(rdi4))
+
+    tiny = np.finfo(np.float32).tiny
+    coh13 = np.abs(xc13) / np.sqrt(np.maximum(p1 * p3, tiny))
+    coh14 = np.abs(xc14) / np.sqrt(np.maximum(p1 * p4, tiny))
+    coh34 = np.abs(xc34) / np.sqrt(np.maximum(p3 * p4, tiny))
+    coherence = np.clip((coh13 + coh14 + coh34) / 3.0, 0.0, 1.0)
+
+    return (xc13, xc14, xc34), coherence
+
+
 def fit_horizontal_wind(det, min_points=8):
     """
     Least-squares horizontal wind from radial velocities.
@@ -94,13 +132,13 @@ def fit_horizontal_wind(det, min_points=8):
         0  time unix   4  vr m/s    8  los_w
         1  x km        5  snr       9  range km
         2  y km        6  los_u     10 doppler Hz
-        3  height km   7  los_v
+        3  height km   7  los_v       11 coherence
     """
     if det.shape[0] < min_points:
         return np.nan, np.nan, det.shape[0]
     A       = det[:, [6, 7]]
     y       = det[:, 4]
-    weights = np.clip(det[:, 5], 1, None)
+    weights = np.clip(det[:, 5], 1, None) * np.clip(det[:, 11], 0, 1) ** 2
     try:
         U, V = weighted_lstsq(A, y, weights)
     except np.linalg.LinAlgError:
@@ -112,13 +150,13 @@ def fit_horizontal_wind(det, min_points=8):
 
 def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_unix):
     """
-    Extract meteor detections from start_unix to end_unix.
+    Extract high-coherence three-dipole detections from start_unix to end_unix.
 
     Returns array with columns:
         0  time unix   4  vr m/s    8  los_w
         1  x km        5  snr       9  range km
         2  y km        6  los_u     10 doppler Hz
-        3  height km   7  los_v
+        3  height km   7  los_v       11 coherence
     """
     detections = []
     t0_us = int(start_unix * 1e6)
@@ -132,7 +170,6 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
 
         for k in dd.keys():
             RDI1 = dd[k]["rdi1"] * np.exp(1j * phasecal[0])
-            RDI2 = dd[k]["rdi2"] * np.exp(1j * phasecal[1])
             RDI3 = dd[k]["rdi3"] * np.exp(1j * phasecal[2])
             RDI4 = dd[k]["rdi4"] * np.exp(1j * phasecal[3])
 
@@ -164,22 +201,25 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
             else:
                 good_cell = np.ones_like(snr, dtype=bool)
 
+            cross_spectra, coherence = three_dipole_coherence(RDI1, RDI3, RDI4)
             idx = np.where(
                 (snr > SNR_THRESH)
                 & (rr > RANGE_MIN) & (rr < RANGE_MAX)
                 & (np.abs(ff) < DOPPLER_MAX_HZ)
                 & good_cell
+                & (coherence >= COHERENCE_MIN)
             )
             if len(idx[0]) == 0:
                 continue
 
-            xc13 = (RDI1[idx] * np.conj(RDI3[idx])).flatten()
-            xc14 = (RDI1[idx] * np.conj(RDI4[idx])).flatten()
-            xc34 = (RDI3[idx] * np.conj(RDI4[idx])).flatten()
+            xc13 = cross_spectra[0][idx].flatten()
+            xc14 = cross_spectra[1][idx].flatten()
+            xc34 = cross_spectra[2][idx].flatten()
 
             rrs  = rr[idx].flatten()
             ffs  = ff[idx].flatten()
             snrs = snr[idx].flatten()
+            coherences = coherence[idx].flatten()
 
             for mi in range(len(ffs)):
                 los_u, los_v, los_w = ih.aoa(
@@ -201,11 +241,11 @@ def extract_detections_for_interval(dmt, phasecal, pos_diffs, start_unix, end_un
                     t_mid_unix, x, y, z,
                     vr, snrs[mi],
                     los_u, los_v, los_w,
-                    rrs[mi], ffs[mi],
+                    rrs[mi], ffs[mi], coherences[mi],
                 ])
 
     if len(detections) == 0:
-        return np.empty((0, 11))
+        return np.empty((0, 12))
     return np.asarray(detections)
 
 
@@ -269,7 +309,7 @@ def plot_window(wind_rows, window_start_unix, window_end_unix, plot_file):
     t0_dt = unix_to_datetime(window_start_unix)
     t1_dt = unix_to_datetime(window_end_unix)
     fig.suptitle(
-        f"MF meteor winds (3-ch)\n"
+        f"MF coherent-echo winds (three dipoles)\n"
         f"{t0_dt:%Y-%m-%d %H:%M} – {t1_dt:%Y-%m-%d %H:%M} UT"
     )
     fig.tight_layout()
@@ -315,7 +355,9 @@ def main():
         date_tag  = start_dt.strftime("%Y-%m-%d")
         det_file  = os.path.join(OUTDIR, f"{date_tag}_detections_2day_3ch.npy")
         wind_file = os.path.join(OUTDIR, f"{date_tag}_winds_2day_3ch.npy")
-        plot_file = os.path.join(OUTDIR, f"{date_tag}_mf_meteor_winds_2day_3ch.png")
+        plot_file = os.path.join(
+            OUTDIR, f"{date_tag}_mf_coherent_echo_winds_2day_3ch.png"
+        )
 
         # Load saved progress for this window if it exists
         saved_winds = np.load(wind_file) if os.path.exists(wind_file) else None
