@@ -1,5 +1,9 @@
 
 import numpy as np
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 import digital_rf as drf
 import logging
