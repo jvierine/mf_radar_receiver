@@ -18,6 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.signal as signal
 
 import mf_conf as mc
 import calc_rti as crti
@@ -32,6 +33,8 @@ POWER_THRESHOLD_DB = 6.0
 REDUCTION_BLOCK_S = 2
 REDUCTION_CHANNELS = ("ch1", "ch2", "ch3", "ch4")
 _worker_reader = None
+_worker_lpf = None
+_worker_range_mask = None
 
 
 def parse_utc(value: str) -> dt.datetime:
@@ -60,26 +63,81 @@ def parse_args() -> argparse.Namespace:
 
 
 def initialize_reduction_worker(raw_dir: str) -> None:
-    global _worker_reader
+    global _worker_reader, _worker_lpf, _worker_range_mask
     _worker_reader = drf.DigitalRFReader(raw_dir)
+    _worker_lpf = mc.fir_lowpass_hann(
+        fc=20e3,
+        fs=crti.FS_RAW,
+        num_taps=crti.NUM_TAPS,
+    ).astype(np.float32)
+    _worker_range_mask = crti.range_mask(crti.range_vector())
 
 
 def reduce_block(i0: int) -> tuple[int, dict]:
-    if _worker_reader is None:
+    if (
+        _worker_reader is None
+        or _worker_lpf is None
+        or _worker_range_mask is None
+    ):
         raise RuntimeError("reduction worker has no Digital RF reader")
     rtis = []
     rdis = []
-    tvec = rvec = fvec = None
+    voltage_blocks = {
+        channel: np.asarray(
+            _worker_reader.read_vector_c81d(
+                i0 + crti.OFFSET,
+                REDUCTION_BLOCK_S * monitor.FS,
+                channel,
+            ),
+            dtype=np.complex64,
+        ).reshape(-1, crti.IPP)
+        - np.complex64(mc.dc_offset)
+        for channel in REDUCTION_CHANNELS
+    }
+    tx_phase = np.angle(
+        np.mean(
+            voltage_blocks["ch1"][:, : crti.TX_LEN],
+            axis=1,
+        )
+    ).astype(np.float32)
+    phase_correction = np.exp(-1j * tx_phase).astype(np.complex64)
+
     for channel in REDUCTION_CHANNELS:
-        tvec, rvec, fvec, rti, rdi = crti.rti(
-            _worker_reader,
-            channel,
-            i0,
-            n_samples=REDUCTION_BLOCK_S * monitor.FS,
-            plot=False,
+        voltage = voltage_blocks[channel]
+        voltage[:, : crti.GC] = 0.0
+        voltage *= phase_correction[:, None]
+        filtered = signal.convolve(
+            voltage,
+            _worker_lpf[None, :],
+            mode="same",
+            method="direct",
+        )
+        decimated = filtered[:, :: crti.DEC]
+        n_integrations = len(decimated) // crti.N_CI
+        rti = decimated[: n_integrations * crti.N_CI].reshape(
+            n_integrations,
+            crti.N_CI,
+            -1,
+        ).sum(axis=1)
+        rti = rti[:, _worker_range_mask].astype(np.complex64)
+        rdi_full = np.fft.fftshift(
+            np.fft.fft(rti, axis=0),
+            axes=0,
         )
         rtis.append(rti)
-        rdis.append(rdi)
+        rdis.append(rdi_full.astype(np.complex64))
+
+    tvec = (
+        np.arange(n_integrations)
+        * crti.N_CI
+        * crti.IPP
+        / crti.FS_RAW
+    )
+    rvec = crti.range_vector()[_worker_range_mask]
+    prf_integrated = crti.FS_RAW / crti.IPP / crti.N_CI
+    fvec = np.fft.fftshift(
+        np.fft.fftfreq(n_integrations, d=1.0 / prf_integrated)
+    )
     return i0, {
         "rdi1": rdis[0],
         "rdi2": rdis[1],
