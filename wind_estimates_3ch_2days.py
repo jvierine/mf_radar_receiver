@@ -18,6 +18,8 @@ import image_help as ih
 
 OUTDIR = "/data2/products/winds/3ch_coherent_2day"
 os.makedirs(OUTDIR, exist_ok=True)
+REALTIME_OUTDIR = "/data2/products/winds/3ch_coherent_realtime"
+os.makedirs(REALTIME_OUTDIR, exist_ok=True)
 LATEST_SELECTED_RTI = "/data2/plots/monitor/latest_selected_wind_pixels.png"
 LATEST_ALTITUDE_CUTS = "/data2/plots/monitor/latest_altitude_cuts_30m.png"
 
@@ -65,6 +67,9 @@ MIN_VELOCITY_RESIDUAL_MS = 10.0
 ALTITUDE_CUT_CENTERS_KM = (90.0, 100.0, 110.0, 120.0)
 ALTITUDE_CUT_HALF_WIDTH_KM = 2.0
 ALTITUDE_CUT_WINDOW_S = 30 * 60
+REALTIME_RETENTION_S = 48 * 3600
+BACKFILL_LOAD_FRACTION = 0.75
+HISTORICAL_BLOCKS_PER_RUN = 1
 
 USE_BACKGROUND_REJECTION = True
 BG_STRONG_FRAC_MAX       = 0.05
@@ -551,7 +556,13 @@ def latest_accepted_wind_profile(wind_rows):
     return np.asarray(rows) if rows else None
 
 
-def plot_selected_rti(detections, window_start_unix, window_end_unix, plot_file):
+def plot_selected_rti(
+    detections,
+    window_start_unix,
+    window_end_unix,
+    plot_file,
+    publish_latest=True,
+):
     """Plot only the automatically accepted pixels used by the wind fit."""
     if detections is None or detections.size == 0:
         return
@@ -597,13 +608,19 @@ def plot_selected_rti(detections, window_start_unix, window_end_unix, plot_file)
     figure.tight_layout()
     figure.savefig(plot_file, dpi=180, facecolor=figure.get_facecolor())
     plt.close(figure)
-    os.makedirs(os.path.dirname(LATEST_SELECTED_RTI), exist_ok=True)
-    temporary = LATEST_SELECTED_RTI + ".tmp"
-    shutil.copy2(plot_file, temporary)
-    os.replace(temporary, LATEST_SELECTED_RTI)
+    if publish_latest:
+        os.makedirs(os.path.dirname(LATEST_SELECTED_RTI), exist_ok=True)
+        temporary = LATEST_SELECTED_RTI + ".tmp"
+        shutil.copy2(plot_file, temporary)
+        os.replace(temporary, LATEST_SELECTED_RTI)
 
 
-def plot_altitude_cuts(detections, window_end_unix, plot_file):
+def plot_altitude_cuts(
+    detections,
+    window_end_unix,
+    plot_file,
+    publish_latest=True,
+):
     """Plot accepted echo positions and radial velocities at four altitudes."""
     if detections is None or detections.size == 0:
         return
@@ -658,8 +675,8 @@ def plot_altitude_cuts(detections, window_end_unix, plot_file):
             f"N={len(selected)}",
             color="#edf4ff",
         )
-        axis.set_xlim(-150, 150)
-        axis.set_ylim(-150, 150)
+        axis.set_xlim(-200, 200)
+        axis.set_ylim(-200, 200)
         axis.set_aspect("equal", adjustable="box")
         axis.tick_params(colors="#8fa1ba")
         axis.grid(color="#ffffff", alpha=0.07)
@@ -691,10 +708,11 @@ def plot_altitude_cuts(detections, window_end_unix, plot_file):
     figure.savefig(plot_file, dpi=180, facecolor=figure.get_facecolor())
     plt.close(figure)
 
-    os.makedirs(os.path.dirname(LATEST_ALTITUDE_CUTS), exist_ok=True)
-    temporary = LATEST_ALTITUDE_CUTS + ".tmp"
-    shutil.copy2(plot_file, temporary)
-    os.replace(temporary, LATEST_ALTITUDE_CUTS)
+    if publish_latest:
+        os.makedirs(os.path.dirname(LATEST_ALTITUDE_CUTS), exist_ok=True)
+        temporary = LATEST_ALTITUDE_CUTS + ".tmp"
+        shutil.copy2(plot_file, temporary)
+        os.replace(temporary, LATEST_ALTITUDE_CUTS)
 
 
 
@@ -753,6 +771,104 @@ def plot_window(wind_rows, window_start_unix, window_end_unix, plot_file):
     print(f"  Saved plot: {plot_file}")
 
 
+def empty_wind_block(block_start):
+    h_edges = np.arange(HEIGHT_MIN, HEIGHT_MAX + HEIGHT_RES, HEIGHT_RES)
+    h_centers = 0.5 * (h_edges[:-1] + h_edges[1:])
+    block_center = block_start + WIND_DT / 2
+    return np.asarray(
+        [[block_center, height, np.nan, np.nan, 0] for height in h_centers]
+    )
+
+
+def load_product(path, columns):
+    if not os.path.exists(path):
+        return np.empty((0, columns))
+    values = np.load(path)
+    if values.ndim != 2 or values.shape[1] != columns:
+        return np.empty((0, columns))
+    return values
+
+
+def save_product(path, values):
+    temporary = path + ".tmp"
+    with open(temporary, "wb") as handle:
+        np.save(handle, values)
+    os.replace(temporary, path)
+
+
+def spare_cpu_available():
+    cpu_count = os.cpu_count() or 1
+    return os.getloadavg()[0] < cpu_count * BACKFILL_LOAD_FRACTION
+
+
+def process_realtime_block(dmt, phasecal, pos_diffs, newest_complete_block):
+    """Process the newest complete ten-minute block before any backfill."""
+    block_end = newest_complete_block
+    block_start = block_end - WIND_DT
+    det_file = os.path.join(REALTIME_OUTDIR, "detections_48h.npy")
+    wind_file = os.path.join(REALTIME_OUTDIR, "winds_48h.npy")
+    wind_plot = os.path.join(REALTIME_OUTDIR, "winds_48h.png")
+    selected_plot = os.path.join(REALTIME_OUTDIR, "selected_pixels_48h.png")
+    altitude_plot = os.path.join(REALTIME_OUTDIR, "altitude_cuts_30m.png")
+
+    detections = load_product(det_file, 21)
+    winds = load_product(wind_file, 5)
+    block_center = block_start + WIND_DT / 2
+    already_processed = np.any(winds[:, 0] == block_center) if len(winds) else False
+
+    if not already_processed:
+        prior_profile = latest_accepted_wind_profile(winds)
+        det_block = extract_detections_for_interval(
+            dmt,
+            phasecal,
+            pos_diffs,
+            block_start,
+            block_end,
+            prior_wind_profile=prior_profile,
+        )
+        wind_block = (
+            estimate_wind_profile(det_block, block_start)
+            if len(det_block)
+            else empty_wind_block(block_start)
+        )
+        if len(det_block):
+            detections = np.vstack([detections, det_block])
+        winds = np.vstack([winds, wind_block])
+
+        retention_start = block_end - REALTIME_RETENTION_S
+        detections = detections[detections[:, 0] >= retention_start]
+        winds = winds[winds[:, 0] >= retention_start]
+        save_product(det_file, detections)
+        save_product(wind_file, winds)
+        print(
+            f"Realtime block {unix_to_datetime(block_start):%Y-%m-%d %H:%M}"
+            f"–{unix_to_datetime(block_end):%H:%M} UT"
+            f" -> {len(det_block)} detections"
+        )
+
+    if len(winds):
+        plot_window(
+            winds,
+            max(block_end - REALTIME_RETENTION_S, np.min(winds[:, 0]) - WIND_DT / 2),
+            block_end,
+            wind_plot,
+        )
+    if len(detections):
+        plot_selected_rti(
+            detections,
+            block_end - REALTIME_RETENTION_S,
+            block_end,
+            selected_plot,
+            publish_latest=True,
+        )
+        plot_altitude_cuts(
+            detections,
+            min(block_end, np.max(detections[:, 0])),
+            altitude_plot,
+            publish_latest=True,
+        )
+
+
 
 def main():
     phasecal = load_phasecal()
@@ -776,6 +892,17 @@ def main():
     print(f"Newest available data: {unix_to_datetime(newest_available)} UT\n")
 
     newest_complete_block = np.floor(newest_available / WIND_DT) * WIND_DT
+    process_realtime_block(
+        dmt,
+        phasecal,
+        pos_diffs,
+        newest_complete_block,
+    )
+    if not spare_cpu_available():
+        print("Skipping historical backfill: CPU load is above the headroom limit.")
+        return
+
+    historical_blocks_processed = 0
 
     while window_start < newest_complete_block:
         window_end = window_start + window_dur
@@ -857,6 +984,9 @@ def main():
             np.save(wind_file, all_winds)
 
             next_block += WIND_DT
+            historical_blocks_processed += 1
+            if historical_blocks_processed >= HISTORICAL_BLOCKS_PER_RUN:
+                break
 
         # Plot the available part of this window.
         if all_winds is not None and all_winds.size > 0:
@@ -870,6 +1000,7 @@ def main():
                 window_start,
                 processing_end,
                 selected_rti_file,
+                publish_latest=False,
             )
             latest_detection_time = (
                 np.max(all_dets[:, 0])
@@ -880,7 +1011,11 @@ def main():
                 all_dets,
                 latest_detection_time,
                 altitude_cuts_file,
+                publish_latest=False,
             )
+
+        if historical_blocks_processed >= HISTORICAL_BLOCKS_PER_RUN:
+            break
         else:
             print("  No wind data for this window.")
 

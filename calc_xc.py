@@ -14,6 +14,8 @@ BLOCK_S      = 2            # processing block length, seconds
 N_SAMPLES    = BLOCK_S * 1_000_000   # raw samples per block at 1 MHz
 CHANNELS     = ["ch1", "ch2", "ch3", "ch4"]
 SLEEP_S      = 0.5          # poll interval when waiting for new data, seconds
+BACKFILL_LOAD_FRACTION = 0.75
+BACKFILL_CURSOR_FILE = "/data2/metadata/xc_backfill_cursor.txt"
 
 # ── Logging — errors and warnings only, written to file ───────────────────────
 logging.basicConfig(
@@ -66,6 +68,36 @@ def process_block(d, dmw, i0):
     return True
 
 
+def load_backfill_cursor(dmr, raw_start):
+    try:
+        with open(BACKFILL_CURSOR_FILE, encoding="ascii") as handle:
+            return int(handle.read().strip())
+    except (FileNotFoundError, ValueError):
+        try:
+            return int(dmr.get_bounds()[1] + N_SAMPLES)
+        except Exception:
+            return int(raw_start + N_SAMPLES)
+
+
+def save_backfill_cursor(cursor):
+    temporary = BACKFILL_CURSOR_FILE + ".tmp"
+    with open(temporary, "w", encoding="ascii") as handle:
+        handle.write(f"{cursor}\n")
+    os.replace(temporary, BACKFILL_CURSOR_FILE)
+
+
+def spare_cpu_available():
+    cpu_count = os.cpu_count() or 1
+    return os.getloadavg()[0] < cpu_count * BACKFILL_LOAD_FRACTION
+
+
+def latest_complete_block(bounds):
+    """Start sample of the newest complete, offset-safe two-second block."""
+    return (
+        (bounds[1] - N_SAMPLES - crti.OFFSET) // N_SAMPLES
+    ) * N_SAMPLES
+
+
 def main():
     os.makedirs(mc.xc_dir, exist_ok=True)
 
@@ -80,32 +112,43 @@ def main():
     )
     dmr = drf.DigitalMetadataReader(mc.xc_dir)
 
-    # ── Determine where to start ──────────────────────────────────────────────
     b = d.get_bounds("ch1")
-    try:
-        db = dmr.get_bounds()
-        i0 = db[1] + N_SAMPLES
-    except Exception:
-        i0 = b[0] + N_SAMPLES
+    backfill_i0 = load_backfill_cursor(dmr, b[0])
+    last_realtime_i0 = None
 
     while True:
         b = d.get_bounds("ch1")
+        realtime_i0 = latest_complete_block(b)
 
-        # Skip blocks whose raw data has been overwritten by the ring buffer
-        while i0 < b[0] + N_SAMPLES:
-            logging.warning("block %d no longer in ring buffer, skipping", i0)
-            i0 += N_SAMPLES
+        # The newest complete block always has priority.
+        if realtime_i0 > b[0] and realtime_i0 != last_realtime_i0:
+            if process_block(d, dmw, realtime_i0):
+                last_realtime_i0 = realtime_i0
+            else:
+                logging.error("realtime block %d failed; retrying", realtime_i0)
+                time.sleep(SLEEP_S)
+                continue
 
-        # Wait until the full block is available
-        while i0 + N_SAMPLES > b[1]:
+        # Advance a persistent historical cursor only when raw data still
+        # exists, it cannot collide with realtime, and the host has headroom.
+        while backfill_i0 < b[0] + N_SAMPLES:
+            logging.warning(
+                "historical block %d was overwritten; advancing cursor",
+                backfill_i0,
+            )
+            backfill_i0 += N_SAMPLES
+            save_backfill_cursor(backfill_i0)
+
+        if (
+            backfill_i0 < realtime_i0 - N_SAMPLES
+            and spare_cpu_available()
+        ):
+            if not process_block(d, dmw, backfill_i0):
+                logging.error("historical block %d failed; skipping", backfill_i0)
+            backfill_i0 += N_SAMPLES
+            save_backfill_cursor(backfill_i0)
+        else:
             time.sleep(SLEEP_S)
-            b = d.get_bounds("ch1")
-
-        ok = process_block(d, dmw, i0)
-        if not ok:
-            logging.error("block %d failed, skipping", i0)
-
-        i0 += N_SAMPLES
 
 
 if __name__ == "__main__":
