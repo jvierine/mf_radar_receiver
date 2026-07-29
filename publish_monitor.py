@@ -132,7 +132,7 @@ def acquisition_status(raw_dir: Path) -> tuple[dict, float, int]:
         channel_dir = raw_dir / channel
         date_dirs = sorted(path for path in channel_dir.glob("20*") if path.is_dir())
         latest = newest_file(date_dirs[-1], "*.h5") if date_dirs else None
-        age = now - latest.stat().st_mtime if latest else 1e12
+        age = max(0.0, now - latest.stat().st_mtime) if latest else 1e12
         channels[channel] = {"acquisition_age_seconds": age}
         ages.append(age)
     return channels, max(ages), sum(age < 30 for age in ages)
