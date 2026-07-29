@@ -64,6 +64,8 @@ rolling 48-hour realtime product under
 `/data2/products/winds/3ch_coherent_realtime_z70/`. Each timer run may process at
 most one historical ten-minute block afterward, and only when CPU headroom is
 available. Historical plots cannot overwrite the realtime monitor products.
+Detections from overlapping realtime windows are de-duplicated by their
+two-second timestamp and range-gate index before products and plots are saved.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  

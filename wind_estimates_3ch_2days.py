@@ -811,6 +811,20 @@ def save_product(path, values):
     os.replace(temporary, path)
 
 
+def deduplicate_detections(detections):
+    """Keep the newest result for each two-second timestamp and range gate."""
+    if detections is None or len(detections) < 2:
+        return detections
+    keys = detections[:, [0, 19]]
+    _, reverse_indices = np.unique(
+        keys[::-1],
+        axis=0,
+        return_index=True,
+    )
+    keep = len(detections) - 1 - reverse_indices
+    return detections[np.sort(keep)]
+
+
 def spare_cpu_available():
     cpu_count = os.cpu_count() or 1
     return os.getloadavg()[0] < cpu_count * BACKFILL_LOAD_FRACTION
@@ -851,6 +865,7 @@ def process_realtime_block(dmt, phasecal, pos_diffs, realtime_end):
         winds = np.vstack([winds, wind_block])
 
         retention_start = block_end - REALTIME_RETENTION_S
+        detections = deduplicate_detections(detections)
         detections = detections[detections[:, 0] >= retention_start]
         winds = winds[winds[:, 0] >= retention_start]
         save_product(det_file, detections)
