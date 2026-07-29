@@ -59,7 +59,7 @@
         <div class="eyebrow">Rolling quick-look · latest 48 hours</div>
         <h2>Range–time intensity</h2>
       </div>
-      <p>Combined power from the three MF dipole antennas. Click a plot to inspect it.</p>
+      <p>Quick-look SNR from the three MF dipole antennas. Click a plot to inspect it.</p>
     </section>
 
     <section class="rti-grid" id="plot-grid" aria-label="Latest 48-hour range-time intensity plots">
@@ -96,6 +96,51 @@
           <span>0–200 km</span>
         </footer>
       </article>
+    </section>
+
+    <section class="processing-note" aria-labelledby="processing-title">
+      <div>
+        <div class="eyebrow">Quick-look method</div>
+        <h2 id="processing-title">From voltage to SNR</h2>
+      </div>
+      <ol>
+        <li>
+          <strong>Correct the complex voltage.</strong>
+          The known USRP digital-downconverter offset, <code>−0.25−0.25i</code>,
+          is removed from every sample.
+        </li>
+        <li>
+          <strong>Form received power.</strong>
+          Five consecutive 10 ms interpulse periods are converted to
+          <code>|z|²</code> and averaged incoherently.
+        </li>
+        <li>
+          <strong>Combine the dipoles.</strong>
+          Power from channels 1, 3, and 4 is averaged. The broadband loop
+          channel is excluded from this quick-look product.
+        </li>
+        <li>
+          <strong>Reduce the range resolution.</strong>
+          Ten adjacent 1 MHz voltage samples are averaged in power, producing
+          approximately 1.5 km one-way range bins.
+        </li>
+        <li>
+          <strong>Estimate the noise floor.</strong>
+          For each one-minute profile, the 20th percentile of power between
+          250 and 1400 km is used as a robust receiver-noise estimate.
+        </li>
+        <li>
+          <strong>Calculate SNR.</strong>
+          The displayed value is <code>10 log₁₀(P / Pnoise)</code>. The
+          mesospheric view is fixed at −3 to 20 dB; the full-range view is
+          fixed at −3 to 35 dB.
+        </li>
+      </ol>
+      <p>
+        One profile is retained per minute over a rolling 48-hour window.
+        This is an operational quick-look: it does not use coherent integration,
+        matched filtering, phase calibration, beamforming, or Doppler selection.
+      </p>
     </section>
 
     <section class="operations">

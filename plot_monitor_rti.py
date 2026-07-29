@@ -28,6 +28,8 @@ IPP_SAMPLES = 10_000
 DECIMATION = 10
 OFFSET = 8_900
 DEFAULT_CHANNELS = ("ch1", "ch3", "ch4")
+NOISE_RANGE_KM = (250.0, 1400.0)
+NOISE_PERCENTILE = 20.0
 
 
 def parse_args() -> argparse.Namespace:
@@ -103,6 +105,8 @@ def plot_rti(
     output_path: Path,
     maximum_range_km: float,
     title: str,
+    snr_min_db: float,
+    snr_max_db: float,
 ) -> None:
     range_km = (
         np.arange(power.shape[1], dtype=np.float64)
@@ -111,15 +115,15 @@ def plot_rti(
         / (2.0 * FS * 1_000.0)
     )
     mask = range_km <= maximum_range_km
-    decibels = 10.0 * np.log10(np.maximum(power[:, mask].T, 1e-20))
-    finite = decibels[np.isfinite(decibels)]
+    noise_mask = (range_km >= NOISE_RANGE_KM[0]) & (range_km <= NOISE_RANGE_KM[1])
+    noise_power = np.nanpercentile(power[:, noise_mask], NOISE_PERCENTILE, axis=1)
+    noise_power = np.maximum(noise_power, 1e-20)
+    snr_db = 10.0 * np.log10(
+        np.maximum(power[:, mask], 1e-20) / noise_power[:, np.newaxis]
+    ).T
+    finite = snr_db[np.isfinite(snr_db)]
     if finite.size == 0:
         raise RuntimeError("RTI contains no finite samples")
-
-    vmin = float(np.nanpercentile(finite, 5.0))
-    vmax = float(np.nanpercentile(finite, 99.7))
-    if vmax <= vmin:
-        vmax = vmin + 1.0
 
     dates = [dt.datetime.fromtimestamp(int(value), tz=dt.timezone.utc) for value in times]
     figure, axis = plt.subplots(figsize=(15, 5.8), facecolor="#070b14")
@@ -127,11 +131,11 @@ def plot_rti(
     mesh = axis.pcolormesh(
         dates,
         range_km[mask],
-        decibels,
+        snr_db,
         cmap="plasma",
         shading="auto",
-        vmin=vmin,
-        vmax=vmax,
+        vmin=snr_min_db,
+        vmax=snr_max_db,
         rasterized=True,
     )
     axis.set_ylim(0, maximum_range_km)
@@ -146,7 +150,7 @@ def plot_rti(
     axis.grid(color="#ffffff", alpha=0.07, linewidth=0.6)
 
     colorbar = figure.colorbar(mesh, ax=axis, pad=0.015)
-    colorbar.set_label("Received power (dB)", color="#b7c5d9")
+    colorbar.set_label("Quick-look SNR (dB)", color="#b7c5d9")
     colorbar.ax.tick_params(colors="#8fa1ba")
     colorbar.outline.set_edgecolor("#314563")
     figure.tight_layout()
@@ -216,6 +220,8 @@ def main() -> None:
         output_dir / "latest_rti_48h_full.png",
         1500.0,
         "Ramfjordmoen MF radar · latest 48 hours · 0–1500 km",
+        -3.0,
+        35.0,
     )
     plot_rti(
         times,
@@ -223,6 +229,8 @@ def main() -> None:
         output_dir / "latest_rti_48h_mesosphere.png",
         200.0,
         "Ramfjordmoen MF radar · latest 48 hours · 0–200 km",
+        -3.0,
+        20.0,
     )
 
     generated_at = dt.datetime.now(dt.timezone.utc)
@@ -238,6 +246,11 @@ def main() -> None:
         "cadence_seconds": args.cadence,
         "averaged_ipps": args.averages,
         "channels": args.channels,
+        "range_resolution_km": DECIMATION * constants.c / (2.0 * FS * 1_000.0),
+        "noise_range_km": list(NOISE_RANGE_KM),
+        "noise_percentile": NOISE_PERCENTILE,
+        "full_range_snr_limits_db": [-3.0, 35.0],
+        "mesosphere_snr_limits_db": [-3.0, 20.0],
     }
     atomic_json(output_dir / "rti_status.json", status)
     print(

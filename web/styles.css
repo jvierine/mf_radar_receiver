@@ -332,6 +332,73 @@ main {
   margin-top: 72px;
 }
 
+.processing-note {
+  margin-top: 22px;
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(11, 18, 32, 0.72);
+}
+
+.processing-note h2 {
+  margin: 6px 0 20px;
+  font-size: 1.45rem;
+  letter-spacing: -0.025em;
+}
+
+.processing-note ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: processing;
+}
+
+.processing-note li {
+  counter-increment: processing;
+  min-height: 138px;
+  padding: 17px 20px 17px 46px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  position: relative;
+}
+
+.processing-note li::before {
+  content: counter(processing, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  color: var(--cyan);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+}
+
+.processing-note li strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.processing-note code {
+  color: #b8eaff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.73rem;
+}
+
+.processing-note > p {
+  margin: 8px 0 0;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.6;
+}
+
 .ops-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr;
@@ -561,6 +628,10 @@ dialog::backdrop {
     grid-template-columns: 1fr 1fr;
   }
 
+  .processing-note ol {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .station-card {
     grid-column: 1 / -1;
   }
@@ -613,6 +684,14 @@ dialog::backdrop {
 
   .station-card {
     grid-column: auto;
+  }
+
+  .processing-note {
+    padding: 22px;
+  }
+
+  .processing-note ol {
+    grid-template-columns: 1fr;
   }
 
   .keyboard-help {
