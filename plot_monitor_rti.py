@@ -396,17 +396,6 @@ def main() -> None:
         thirty_minute_noise_power = float(
             np.nanmean(recent_power[:, background_mask])
         )
-        plot_rti(
-            recent_times,
-            recent_power,
-            output_dir / "latest_rti_30m_mesosphere.png",
-            200.0,
-            "Ramfjordmoen MF radar · latest 30 minutes · "
-            "two-second cadence · 0–200 km",
-            THIRTY_MINUTE_POWER_RATIO_MIN_DB,
-            20.0,
-            fixed_noise_power=thirty_minute_noise_power,
-        )
     else:
         thirty_minute_noise_power = None
 
