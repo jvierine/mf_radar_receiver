@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import h5py
 import os
+import shutil
 import datetime as dt
 from scipy.ndimage import uniform_filter
 from scipy.optimize import minimize_scalar
@@ -17,11 +18,12 @@ import image_help as ih
 
 OUTDIR = "/data2/products/winds/3ch_coherent_2day"
 os.makedirs(OUTDIR, exist_ok=True)
+LATEST_SELECTED_RTI = "/data2/plots/monitor/latest_selected_wind_pixels.png"
 
 # First date to process (inclusive, UTC midnight).
 # The script produces one 2-day plot per 2-day window starting here,
 # rolling forward until no more complete data is available.
-PROCESS_START = "2025-12-03"
+PROCESS_START = "2026-07-22"
 
 WIND_DT       = 10 * 60   # 10-minute wind blocks (seconds)
 PLOT_DURATION = 2          # days per plot
@@ -558,7 +560,8 @@ def plot_selected_rti(detections, window_start_unix, window_end_unix, plot_file)
         return
 
     snr_db = 10.0 * np.log10(np.maximum(selected[:, 5], 1e-20))
-    figure, axis = plt.subplots(figsize=(14, 5))
+    figure, axis = plt.subplots(figsize=(14, 5), facecolor="#070b14")
+    axis.set_facecolor("#050810")
     pixels = axis.scatter(
         [unix_to_datetime(value) for value in selected[:, 0]],
         selected[:, 9],
@@ -576,11 +579,24 @@ def plot_selected_rti(detections, window_start_unix, window_end_unix, plot_file)
     axis.set_ylabel("One-way slant range (km)")
     axis.set_ylim(RANGE_MIN, RANGE_MAX)
     axis.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
-    axis.grid(alpha=0.2)
-    figure.colorbar(pixels, ax=axis).set_label("Beamformed sinusoid SNR (dB)")
+    axis.tick_params(colors="#8fa1ba")
+    axis.xaxis.label.set_color("#b7c5d9")
+    axis.yaxis.label.set_color("#b7c5d9")
+    axis.title.set_color("#edf4ff")
+    for spine in axis.spines.values():
+        spine.set_color("#314563")
+    axis.grid(color="#ffffff", alpha=0.07)
+    colorbar = figure.colorbar(pixels, ax=axis)
+    colorbar.set_label("Beamformed sinusoid SNR (dB)", color="#b7c5d9")
+    colorbar.ax.tick_params(colors="#8fa1ba")
+    colorbar.outline.set_edgecolor("#314563")
     figure.tight_layout()
-    figure.savefig(plot_file, dpi=180)
+    figure.savefig(plot_file, dpi=180, facecolor=figure.get_facecolor())
     plt.close(figure)
+    os.makedirs(os.path.dirname(LATEST_SELECTED_RTI), exist_ok=True)
+    temporary = LATEST_SELECTED_RTI + ".tmp"
+    shutil.copy2(plot_file, temporary)
+    os.replace(temporary, LATEST_SELECTED_RTI)
 
 
 
@@ -661,13 +677,11 @@ def main():
     print(f"Processing from {PROCESS_START} until data runs out.")
     print(f"Newest available data: {unix_to_datetime(newest_available)} UT\n")
 
-    while True:
-        window_end = window_start + window_dur
+    newest_complete_block = np.floor(newest_available / WIND_DT) * WIND_DT
 
-        # Only process fully covered windows
-        if window_end > newest_available:
-            print("Next window extends beyond available data — stopping.")
-            break
+    while window_start < newest_complete_block:
+        window_end = window_start + window_dur
+        processing_end = min(window_end, newest_complete_block)
 
         start_dt = unix_to_datetime(window_start)
         end_dt   = unix_to_datetime(window_end)
@@ -699,7 +713,7 @@ def main():
         all_dets  = saved_dets
 
         # Process every 10-minute block in this window
-        while next_block < window_end:
+        while next_block < processing_end:
             block_start = next_block
             block_end   = min(block_start + WIND_DT, window_end)
 
@@ -743,23 +757,26 @@ def main():
 
             next_block += WIND_DT
 
-        # Plot the completed window
+        # Plot the available part of this window.
         if all_winds is not None and all_winds.size > 0:
             mask = (
                 (all_winds[:, 0] >= window_start)
                 & (all_winds[:, 0] <  window_end)
             )
-            plot_window(all_winds[mask], window_start, window_end, plot_file)
+            plot_window(all_winds[mask], window_start, processing_end, plot_file)
             plot_selected_rti(
                 all_dets,
                 window_start,
-                window_end,
+                processing_end,
                 selected_rti_file,
             )
         else:
             print("  No wind data for this window.")
 
-        # Advance to the next 2-day window
+        if processing_end < window_end:
+            break
+
+        # Advance to the next complete 2-day window.
         window_start = window_end
 
 

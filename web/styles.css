@@ -252,6 +252,10 @@ main {
   transform: translateY(-2px);
 }
 
+.selected-rti-card {
+  grid-column: 1 / -1;
+}
+
 .plot-card > header,
 .plot-card > footer {
   display: flex;

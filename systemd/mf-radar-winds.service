@@ -1,0 +1,14 @@
+[Unit]
+Description=Estimate automatic three-dipole MF radar winds
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=radar
+WorkingDirectory=/home/radar/src/mf_radar_receiver
+Environment=MPLBACKEND=Agg
+ExecStart=/home/radar/drf/bin/python /home/radar/src/mf_radar_receiver/wind_estimates_3ch_2days.py
+Nice=10
+IOSchedulingClass=idle
+IOSchedulingPriority=7
+

@@ -108,6 +108,29 @@
           <span>0–200 km</span>
         </footer>
       </article>
+
+      <article class="plot-card selected-rti-card" data-plot="rti_selected">
+        <header>
+          <div>
+            <span class="channel-id">Wind selection</span>
+            <h3>Automatically accepted pixels</h3>
+          </div>
+          <span class="freshness" id="rti_selected-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open selected wind-processing pixels RTI">
+          <img id="rti_selected-image" src="latest_selected_wind_pixels.png" alt="Range-time-intensity plot of pixels automatically selected for wind processing">
+        </button>
+        <p class="plot-method">
+          Every pixel shown passed the SNR, three-dipole coherence, phase
+          closure, AoA fit, 60–150 km geometric-altitude, ambiguity-continuity,
+          and ±300 m/s bounded sinusoid-fit gates. Color is the SNR of the
+          coherently steered and summed three-dipole complex sinusoid.
+        </p>
+        <footer>
+          <time id="rti_selected-time">Awaiting plot metadata</time>
+          <span>Selected pixels · 50–200 km</span>
+        </footer>
+      </article>
     </section>
 
     <section class="processing-note" aria-labelledby="processing-title">

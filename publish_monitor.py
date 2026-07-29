@@ -93,6 +93,18 @@ def process_rows() -> list[dict]:
             "pid": None,
         }
     )
+    wind_timer_active = subprocess.run(
+        ["systemctl", "is-active", "--quiet", "mf-radar-winds.timer"],
+        check=False,
+    ).returncode == 0
+    result.append(
+        {
+            "name": "wind_timer",
+            "label": "Automatic wind processor timer",
+            "alive": wind_timer_active,
+            "pid": None,
+        }
+    )
     return result
 
 
@@ -208,6 +220,7 @@ def main() -> None:
         plot_dir / "latest_rti_48h_full.png",
         plot_dir / "latest_rti_48h_mesosphere.png",
     )
+    optional = (plot_dir / "latest_selected_wind_pixels.png",)
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError(f"Monitor plots are missing: {', '.join(missing)}")
@@ -216,6 +229,9 @@ def main() -> None:
         staging = Path(temporary)
         for source in required:
             shutil.copy2(source, staging / source.name)
+        for source in optional:
+            if source.exists():
+                shutil.copy2(source, staging / source.name)
         (staging / "status.json").write_text(
             json.dumps(build_status(args), indent=2, allow_nan=False) + "\n",
             encoding="utf-8",

@@ -12,6 +12,12 @@ const plots = [
     label: "Mesosphere · 0–200 km",
     file: "latest_rti_48h_mesosphere.png",
   },
+  {
+    id: "rti_selected",
+    title: "Pixels accepted for wind processing",
+    label: "Automatic selection · 50–200 km",
+    file: "latest_selected_wind_pixels.png",
+  },
 ];
 
 const dialog = document.querySelector("#plot-dialog");
