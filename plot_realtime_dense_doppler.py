@@ -358,10 +358,9 @@ def plot_recent_positions(
             color="#b7c5d9",
         )
     axis.set_title(
-        "Dense-fit interferometric positions · latest 5 minutes · "
-        f"N={len(detections)}",
+        f"Interferometric positions · 5 min · N={len(detections)}",
         color="#edf4ff",
-        fontsize=15,
+        fontsize=14,
         weight="semibold",
     )
     temporary = POSITIONS_PLOT.with_suffix(".tmp.png")
