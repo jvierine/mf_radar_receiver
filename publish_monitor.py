@@ -220,7 +220,10 @@ def main() -> None:
         plot_dir / "latest_rti_48h_full.png",
         plot_dir / "latest_rti_48h_mesosphere.png",
     )
-    optional = (plot_dir / "latest_selected_wind_pixels.png",)
+    optional = (
+        plot_dir / "latest_selected_wind_pixels.png",
+        plot_dir / "latest_altitude_cuts_30m.png",
+    )
     missing = [str(path) for path in required if not path.exists()]
     if missing:
         raise FileNotFoundError(f"Monitor plots are missing: {', '.join(missing)}")

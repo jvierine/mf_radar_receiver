@@ -131,6 +131,30 @@
           <span>Selected pixels · 0–200 km</span>
         </footer>
       </article>
+
+      <article class="plot-card selected-rti-card" data-plot="altitude_cuts">
+        <header>
+          <div>
+            <span class="channel-id">Altitude cuts · latest 30 minutes</span>
+            <h3>Echo positions and radial velocities</h3>
+          </div>
+          <span class="freshness" id="altitude_cuts-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open altitude-cut echo position plots">
+          <img id="altitude_cuts-image" src="latest_altitude_cuts_30m.png" alt="Echo positions and radial velocities at 90, 100, 110, and 120 kilometres altitude">
+        </button>
+        <p class="plot-method">
+          Four geographic cuts centered at 90, 100, 110, and 120 km, each
+          accepting echoes within ±2 km. East–west position is horizontal,
+          north–south position is vertical, and color is fitted radial velocity.
+          The MF radar is at the origin. Only automatically accepted echo
+          snippets from the latest 30 minutes of processed data are included.
+        </p>
+        <footer>
+          <time id="altitude_cuts-time">Awaiting plot metadata</time>
+          <span>±2 km slabs · 30-minute window</span>
+        </footer>
+      </article>
     </section>
 
     <section class="processing-note" aria-labelledby="processing-title">

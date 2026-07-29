@@ -18,6 +18,12 @@ const plots = [
     label: "Automatic selection · 0–200 km",
     file: "latest_selected_wind_pixels.png",
   },
+  {
+    id: "altitude_cuts",
+    title: "Echo positions and radial velocities",
+    label: "90 / 100 / 110 / 120 km · latest 30 min",
+    file: "latest_altitude_cuts_30m.png",
+  },
 ];
 
 const dialog = document.querySelector("#plot-dialog");
