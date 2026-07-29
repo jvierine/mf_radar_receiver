@@ -109,6 +109,29 @@
         </footer>
       </article>
 
+      <article class="plot-card selected-rti-card" data-plot="rti_mesosphere_30m">
+        <header>
+          <div>
+            <span class="channel-id">Mesosphere · latest 30 minutes</span>
+            <h3>Unfiltered 0–200 km RTI</h3>
+          </div>
+          <span class="freshness" id="rti_mesosphere_30m-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open latest 30-minute mesospheric RTI">
+          <img id="rti_mesosphere_30m-image" src="latest_rti_30m_mesosphere.png" alt="Latest 30-minute range-time-intensity from 0 to 200 kilometres">
+        </button>
+        <p class="plot-method">
+          The unfiltered comparison field for the wind-selection RTI below.
+          It uses the same three-dipole quick-look processing, approximately
+          1.5 km one-way range resolution, and fixed −3…20 dB SNR scale as the
+          48-hour mesospheric plot, restricted to the latest 30 minutes.
+        </p>
+        <footer>
+          <time id="rti_mesosphere_30m-time">Awaiting plot metadata</time>
+          <span>All echoes · 0–200 km · 30 minutes</span>
+        </footer>
+      </article>
+
       <article class="plot-card selected-rti-card" data-plot="rti_selected">
         <header>
           <div>
@@ -117,7 +140,7 @@
           </div>
           <span class="freshness" id="rti_selected-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open selected wind-processing pixels RTI">
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open selected wind-processing pixels RTI">
           <img id="rti_selected-image" src="latest_selected_wind_pixels.png" alt="Range-time-intensity plot of pixels automatically selected for wind processing">
         </button>
         <p class="plot-method">
@@ -142,7 +165,7 @@
           </div>
           <span class="freshness" id="altitude_cuts-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open altitude-cut echo position plots">
+        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open altitude-cut echo position plots">
           <img id="altitude_cuts-image" src="latest_altitude_cuts_30m.png" alt="Echo positions and radial velocities at 90, 100, 110, and 120 kilometres altitude">
         </button>
         <p class="plot-method">

@@ -232,6 +232,17 @@ def main() -> None:
         -3.0,
         20.0,
     )
+    recent = times >= times[-1] - 30 * 60
+    if np.count_nonzero(recent) >= 2:
+        plot_rti(
+            times[recent],
+            power[recent],
+            output_dir / "latest_rti_30m_mesosphere.png",
+            200.0,
+            "Ramfjordmoen MF radar · latest 30 minutes · 0–200 km",
+            -3.0,
+            20.0,
+        )
 
     generated_at = dt.datetime.now(dt.timezone.utc)
     status = {
@@ -251,6 +262,7 @@ def main() -> None:
         "noise_percentile": NOISE_PERCENTILE,
         "full_range_snr_limits_db": [-3.0, 35.0],
         "mesosphere_snr_limits_db": [-3.0, 20.0],
+        "mesosphere_30m_time_bins": int(np.count_nonzero(recent)),
     }
     atomic_json(output_dir / "rti_status.json", status)
     print(

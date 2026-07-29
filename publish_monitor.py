@@ -221,6 +221,7 @@ def main() -> None:
         plot_dir / "latest_rti_48h_mesosphere.png",
     )
     optional = (
+        plot_dir / "latest_rti_30m_mesosphere.png",
         plot_dir / "latest_selected_wind_pixels.png",
         plot_dir / "latest_altitude_cuts_30m.png",
     )

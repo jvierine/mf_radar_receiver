@@ -13,6 +13,12 @@ const plots = [
     file: "latest_rti_48h_mesosphere.png",
   },
   {
+    id: "rti_mesosphere_30m",
+    title: "Mesosphere detail",
+    label: "Unfiltered quick-look · latest 30 min · 0–200 km",
+    file: "latest_rti_30m_mesosphere.png",
+  },
+  {
     id: "rti_selected",
     title: "Pixels accepted for wind processing",
     label: "Same altitude-cut echoes · latest 30 min",
