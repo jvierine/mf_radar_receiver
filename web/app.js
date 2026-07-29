@@ -28,7 +28,7 @@ const plots = [
     id: "snr_doppler_dense",
     title: "SNR and dense fitted Doppler",
     label: "Two-second cadence · latest 30 min · 0–200 km",
-    file: "latest_snr_doppler_30m_50_200.png",
+    file: "latest_snr_doppler_30m_0_200.png",
   },
 ];
 

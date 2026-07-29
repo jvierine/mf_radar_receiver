@@ -223,7 +223,7 @@ def main() -> None:
     optional = (
         plot_dir / "latest_selected_wind_pixels.png",
         plot_dir / "latest_altitude_cuts_30m.png",
-        plot_dir / "latest_snr_doppler_30m_50_200.png",
+        plot_dir / "latest_snr_doppler_30m_0_200.png",
     )
     missing = [str(path) for path in required if not path.exists()]
     if missing:

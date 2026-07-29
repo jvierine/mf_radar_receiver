@@ -24,7 +24,7 @@ from plot_dense_doppler import dense_doppler
 WINDOW_S = 30 * 60
 DISPLAY_LIMIT_MS = 200.0
 PLOT_DIR = Path("/data2/plots/monitor")
-COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_30m_50_200.png"
+COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_30m_0_200.png"
 DATA_FILE = PLOT_DIR / "latest_doppler_30m.npz"
 SNR_STATE_FILE = PLOT_DIR / "rti_30m_2s_state.npz"
 
