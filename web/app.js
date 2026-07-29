@@ -15,7 +15,7 @@ const plots = [
   {
     id: "rti_selected",
     title: "Pixels accepted for wind processing",
-    label: "Automatic selection · 0–200 km",
+    label: "Same altitude-cut echoes · latest 30 min",
     file: "latest_selected_wind_pixels.png",
   },
   {

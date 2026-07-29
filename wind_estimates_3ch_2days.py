@@ -16,9 +16,9 @@ import image_help as ih
 
 
 
-OUTDIR = "/data2/products/winds/3ch_coherent_2day"
+OUTDIR = "/data2/products/winds/3ch_coherent_2day_z70"
 os.makedirs(OUTDIR, exist_ok=True)
-REALTIME_OUTDIR = "/data2/products/winds/3ch_coherent_realtime"
+REALTIME_OUTDIR = "/data2/products/winds/3ch_coherent_realtime_z70"
 os.makedirs(REALTIME_OUTDIR, exist_ok=True)
 LATEST_SELECTED_RTI = "/data2/plots/monitor/latest_selected_wind_pixels.png"
 LATEST_ALTITUDE_CUTS = "/data2/plots/monitor/latest_altitude_cuts_30m.png"
@@ -31,7 +31,7 @@ PROCESS_START = "2026-07-22"
 WIND_DT       = 10 * 60   # 10-minute wind blocks (seconds)
 PLOT_DURATION = 2          # days per plot
 HEIGHT_RES    = 1.5        # km
-HEIGHT_MIN    = 60
+HEIGHT_MIN    = 70
 HEIGHT_MAX    = 150
 
 READ_DT       = 60         # metadata chunk size, seconds
@@ -43,7 +43,7 @@ NOISE_FMIN    = 5
 SNR_THRESH    = 20
 RANGE_MIN     = 50
 RANGE_MAX     = 200
-HEIGHT_DET_MIN = 60
+HEIGHT_DET_MIN = 70
 HEIGHT_DET_MAX = 150
 DOPPLER_MAX_HZ = 2.0
 COHERENCE_MIN  = 0.80
@@ -616,6 +616,23 @@ def plot_selected_rti(
         os.replace(temporary, LATEST_SELECTED_RTI)
 
 
+def altitude_cut_echoes(detections, window_end_unix):
+    """Return the exact echo set shown by the four altitude-cut panels."""
+    window_start_unix = window_end_unix - ALTITUDE_CUT_WINDOW_S
+    recent = detections[
+        (detections[:, 0] >= window_start_unix)
+        & (detections[:, 0] <= window_end_unix)
+    ]
+    if len(recent) == 0:
+        return recent
+    in_any_cut = np.zeros(len(recent), dtype=bool)
+    for altitude in ALTITUDE_CUT_CENTERS_KM:
+        in_any_cut |= (
+            np.abs(recent[:, 3] - altitude) <= ALTITUDE_CUT_HALF_WIDTH_KM
+        )
+    return recent[in_any_cut]
+
+
 def plot_altitude_cuts(
     detections,
     window_end_unix,
@@ -626,10 +643,7 @@ def plot_altitude_cuts(
     if detections is None or detections.size == 0:
         return
     window_start_unix = window_end_unix - ALTITUDE_CUT_WINDOW_S
-    recent = detections[
-        (detections[:, 0] >= window_start_unix)
-        & (detections[:, 0] <= window_end_unix)
-    ]
+    recent = altitude_cut_echoes(detections, window_end_unix)
     if len(recent) == 0:
         return
 
@@ -855,16 +869,18 @@ def process_realtime_block(dmt, phasecal, pos_diffs, realtime_end):
             wind_plot,
         )
     if len(detections):
+        display_end = min(block_end, np.max(detections[:, 0]))
+        displayed_echoes = altitude_cut_echoes(detections, display_end)
         plot_selected_rti(
-            detections,
-            block_end - REALTIME_RETENTION_S,
-            block_end,
+            displayed_echoes,
+            display_end - ALTITUDE_CUT_WINDOW_S,
+            display_end,
             selected_plot,
             publish_latest=True,
         )
         plot_altitude_cuts(
             detections,
-            min(block_end, np.max(detections[:, 0])),
+            display_end,
             altitude_plot,
             publish_latest=True,
         )

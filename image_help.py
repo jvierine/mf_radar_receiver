@@ -7,7 +7,7 @@ import jcoord
 
 
 NGRID = 200
-MAX_ZENITH_ANGLE_DEG = 45.0
+MAX_ZENITH_ANGLE_DEG = 70.0
 PEAK_FILTER_SIZE = 5
 
 u = np.linspace(-1, 1, num=NGRID)

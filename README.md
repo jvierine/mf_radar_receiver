@@ -17,7 +17,8 @@ and ch4 dipoles only. It computes normalized cross-spectral coherence on all
 three baselines after averaging the auto- and cross-spectra over a 3 × 3
 Doppler-range neighborhood. A detection is retained when the mean baseline
 coherence is at least 0.80 and its interferometric geometric altitude is
-between 60 and 150 km.
+between 70 and 150 km. The AoA search extends to 70 degrees from zenith,
+equivalent to 20 degrees elevation above the horizon.
 
 The averaged cross-spectral phases, rather than individual FFT-pixel products,
 are passed to the interferometric angle-of-arrival solver. Its distinct
@@ -45,7 +46,7 @@ acceptable robust velocity residuals. There is no visual or manual acceptance
 step; failed bins contain no wind estimate.
 
 Results are written separately under
-`/data2/products/winds/3ch_coherent_2day/`. Each window includes zonal and
+`/data2/products/winds/3ch_coherent_2day_z70/`. Each window includes zonal and
 meridional wind products plus one RTI showing only the automatically selected
 pixels used by the wind processor.
 
@@ -60,7 +61,7 @@ by at most one in-progress historical block.
 The wind timer follows the same policy: it first processes a rolling ten-minute
 window ending at the newest reduced two-second sample and maintains a separate
 rolling 48-hour realtime product under
-`/data2/products/winds/3ch_coherent_realtime/`. Each timer run may process at
+`/data2/products/winds/3ch_coherent_realtime_z70/`. Each timer run may process at
 most one historical ten-minute block afterward, and only when CPU headroom is
 available. Historical plots cannot overwrite the realtime monitor products.
 
