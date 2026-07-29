@@ -37,6 +37,8 @@ NOISE_RANGE_KM = (250.0, 1400.0)
 NOISE_PERCENTILE = 20.0
 THIRTY_MINUTE_NOISE_RANGE_KM = (30.0, 50.0)
 THIRTY_MINUTE_POWER_RATIO_MIN_DB = -10.0
+THIRTY_MINUTE_CADENCE_S = 2
+THIRTY_MINUTE_WINDOW_S = 30 * 60
 PROCESSING_VERSION = 2
 
 
@@ -45,6 +47,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--raw-dir", default=mc.raw_dir)
     parser.add_argument("--output-dir", default="/data2/plots/monitor")
     parser.add_argument("--state-file", default="/data2/plots/monitor/rti_48h_state.npz")
+    parser.add_argument(
+        "--thirty-minute-state-file",
+        default="/data2/plots/monitor/rti_30m_2s_state.npz",
+    )
     parser.add_argument("--hours", type=float, default=48.0)
     parser.add_argument("--cadence", type=int, default=60, help="Seconds per time bin.")
     parser.add_argument(
@@ -221,8 +227,17 @@ def plot_rti(
     axis.set_title(title, color="#edf4ff", fontsize=17, pad=14, weight="semibold")
     axis.set_xlabel("Time (UTC)", color="#b7c5d9", labelpad=9)
     axis.set_ylabel("One-way range (km)", color="#b7c5d9", labelpad=9)
-    axis.xaxis.set_major_locator(mdates.HourLocator(interval=6))
-    axis.xaxis.set_major_formatter(mdates.DateFormatter("%d %b\n%H:%M", tz=dt.timezone.utc))
+    duration_seconds = float(times[-1] - times[0])
+    if duration_seconds <= 3600:
+        axis.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
+        axis.xaxis.set_major_formatter(
+            mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
+        )
+    else:
+        axis.xaxis.set_major_locator(mdates.HourLocator(interval=6))
+        axis.xaxis.set_major_formatter(
+            mdates.DateFormatter("%d %b\n%H:%M", tz=dt.timezone.utc)
+        )
     axis.tick_params(colors="#8fa1ba", labelsize=10)
     for spine in axis.spines.values():
         spine.set_color("#314563")
@@ -311,22 +326,83 @@ def main() -> None:
         -3.0,
         20.0,
     )
-    recent = times >= times[-1] - 30 * 60
-    if np.count_nonzero(recent) >= 2:
-        range_km = range_vector_km(power.shape[1])
+
+    high_resolution_state = Path(args.thirty_minute_state_file)
+    high_resolution_state.parent.mkdir(parents=True, exist_ok=True)
+    high_resolution_end = int(
+        latest // FS // THIRTY_MINUTE_CADENCE_S
+        * THIRTY_MINUTE_CADENCE_S
+    )
+    high_resolution_start = max(
+        high_resolution_end - THIRTY_MINUTE_WINDOW_S,
+        int(
+            np.ceil(earliest / FS / THIRTY_MINUTE_CADENCE_S)
+            * THIRTY_MINUTE_CADENCE_S
+        ),
+    )
+    recent_times, recent_power = load_state(
+        high_resolution_state,
+        n_range,
+    )
+    recent_keep = (
+        (recent_times >= high_resolution_start)
+        & (recent_times <= high_resolution_end)
+    )
+    recent_times = recent_times[recent_keep]
+    recent_power = recent_power[recent_keep]
+    next_recent_time = (
+        high_resolution_start
+        if len(recent_times) == 0
+        else int(recent_times[-1]) + THIRTY_MINUTE_CADENCE_S
+    )
+    new_recent_times = []
+    new_recent_power = []
+    for unix_time in range(
+        next_recent_time,
+        high_resolution_end + 1,
+        THIRTY_MINUTE_CADENCE_S,
+    ):
+        try:
+            value = process_time_bin(
+                reader,
+                unix_time,
+                args.channels,
+                args.averages,
+            )
+        except Exception as error:
+            print(f"Skipping two-second RTI bin {unix_time}: {error}")
+            continue
+        new_recent_times.append(unix_time)
+        new_recent_power.append(value)
+    if new_recent_times:
+        recent_times = np.concatenate(
+            (recent_times, np.asarray(new_recent_times, dtype=np.int64))
+        )
+        recent_power = np.concatenate(
+            (
+                recent_power,
+                np.asarray(new_recent_power, dtype=np.float32),
+            ),
+            axis=0,
+        )
+    atomic_state(high_resolution_state, recent_times, recent_power)
+
+    if len(recent_times) >= 2:
+        range_km = range_vector_km(recent_power.shape[1])
         background_mask = (
             (range_km >= THIRTY_MINUTE_NOISE_RANGE_KM[0])
             & (range_km <= THIRTY_MINUTE_NOISE_RANGE_KM[1])
         )
         thirty_minute_noise_power = float(
-            np.nanmean(power[recent][:, background_mask])
+            np.nanmean(recent_power[:, background_mask])
         )
         plot_rti(
-            times[recent],
-            power[recent],
+            recent_times,
+            recent_power,
             output_dir / "latest_rti_30m_mesosphere.png",
             200.0,
-            "Ramfjordmoen MF radar · latest 30 minutes · 0–200 km",
+            "Ramfjordmoen MF radar · latest 30 minutes · "
+            "two-second cadence · 0–200 km",
             THIRTY_MINUTE_POWER_RATIO_MIN_DB,
             20.0,
             fixed_noise_power=thirty_minute_noise_power,
@@ -358,7 +434,8 @@ def main() -> None:
         "display_quantity": "10log10(power/background_power)",
         "full_range_power_ratio_limits_db": [-3.0, 35.0],
         "mesosphere_power_ratio_limits_db": [-3.0, 20.0],
-        "mesosphere_30m_time_bins": int(np.count_nonzero(recent)),
+        "mesosphere_30m_time_bins": int(len(recent_times)),
+        "mesosphere_30m_cadence_seconds": THIRTY_MINUTE_CADENCE_S,
         "mesosphere_30m_noise_method": "mean_power_over_time_and_range",
         "mesosphere_30m_noise_range_km": list(THIRTY_MINUTE_NOISE_RANGE_KM),
         "mesosphere_30m_noise_power": thirty_minute_noise_power,
