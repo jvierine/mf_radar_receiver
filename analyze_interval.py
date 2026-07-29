@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import datetime as dt
 import json
 import os
@@ -19,6 +20,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import mf_conf as mc
+import calc_rti as crti
 import plot_monitor_rti as monitor
 import wind_estimates_3ch_2days as winds
 
@@ -27,6 +29,9 @@ DEFAULT_OUTPUT_ROOT = "/data2/products/interval_analysis"
 WIND_BLOCK_S = 10 * 60
 WIND_SEED_S = 10 * 60
 POWER_THRESHOLD_DB = 6.0
+REDUCTION_BLOCK_S = 2
+REDUCTION_CHANNELS = ("ch1", "ch2", "ch3", "ch4")
+_worker_reader = None
 
 
 def parse_utc(value: str) -> dt.datetime:
@@ -45,7 +50,89 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-root", default=DEFAULT_OUTPUT_ROOT)
     parser.add_argument("--cadence", type=int, default=60)
     parser.add_argument("--averages", type=int, default=5)
+    parser.add_argument(
+        "--materialize-metadata",
+        action="store_true",
+        help="Reduce the interval from raw voltage into an isolated metadata stream.",
+    )
+    parser.add_argument("--workers", type=int, default=4)
     return parser.parse_args()
+
+
+def initialize_reduction_worker(raw_dir: str) -> None:
+    global _worker_reader
+    _worker_reader = drf.DigitalRFReader(raw_dir)
+
+
+def reduce_block(i0: int) -> tuple[int, dict]:
+    if _worker_reader is None:
+        raise RuntimeError("reduction worker has no Digital RF reader")
+    rtis = []
+    rdis = []
+    tvec = rvec = fvec = None
+    for channel in REDUCTION_CHANNELS:
+        tvec, rvec, fvec, rti, rdi = crti.rti(
+            _worker_reader,
+            channel,
+            i0,
+            n_samples=REDUCTION_BLOCK_S * monitor.FS,
+            plot=False,
+        )
+        rtis.append(rti)
+        rdis.append(rdi)
+    return i0, {
+        "rdi1": rdis[0],
+        "rdi2": rdis[1],
+        "rdi3": rdis[2],
+        "rdi4": rdis[3],
+        "rti1": rtis[0],
+        "rti2": rtis[1],
+        "rti3": rtis[2],
+        "rti4": rtis[3],
+        "rvec": rvec,
+        "tvec": tvec,
+        "fvec": fvec,
+    }
+
+
+def materialize_interval_metadata(
+    raw_dir: str,
+    metadata_dir: Path,
+    start_unix: int,
+    end_unix: int,
+    workers: int,
+) -> None:
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    writer = drf.DigitalMetadataWriter(
+        str(metadata_dir),
+        3600,
+        REDUCTION_BLOCK_S,
+        monitor.FS,
+        1,
+        "xc",
+    )
+    starts = np.arange(
+        start_unix * monitor.FS,
+        end_unix * monitor.FS,
+        REDUCTION_BLOCK_S * monitor.FS,
+        dtype=np.int64,
+    )
+    batch_size = max(1, workers * 10)
+    completed = 0
+    with concurrent.futures.ProcessPoolExecutor(
+        max_workers=workers,
+        initializer=initialize_reduction_worker,
+        initargs=(raw_dir,),
+    ) as executor:
+        for batch_start in range(0, len(starts), batch_size):
+            batch = starts[batch_start : batch_start + batch_size]
+            for i0, value in executor.map(reduce_block, map(int, batch)):
+                writer.write(i0, value)
+                completed += 1
+            print(
+                f"Reduced {completed}/{len(starts)} two-second blocks",
+                flush=True,
+            )
 
 
 def band_statistics(
@@ -446,6 +533,10 @@ def main() -> None:
     if len(times) < 2:
         raise ValueError("interval must contain at least two cadence bins")
 
+    tag = f"{args.start:%Y%m%dT%H%M}_{args.end:%H%M}"
+    output_dir = Path(args.output_root) / tag
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     raw_reader = drf.DigitalRFReader(args.raw_dir)
     power = np.asarray(
         [
@@ -469,16 +560,26 @@ def main() -> None:
         np.maximum(power / background_power, 1e-20)
     )
 
-    metadata_reader = drf.DigitalMetadataReader(args.metadata_dir)
+    if args.materialize_metadata:
+        interval_metadata_dir = output_dir / "xc"
+        materialize_interval_metadata(
+            args.raw_dir,
+            interval_metadata_dir,
+            start_unix - WIND_SEED_S,
+            end_unix,
+            args.workers,
+        )
+        metadata_dir = str(interval_metadata_dir)
+    else:
+        metadata_dir = args.metadata_dir
+
+    metadata_reader = drf.DigitalMetadataReader(metadata_dir)
     detections, wind_rows = automatic_detections(
         metadata_reader,
         start_unix,
         end_unix,
     )
 
-    tag = f"{args.start:%Y%m%dT%H%M}_{args.end:%H%M}"
-    output_dir = Path(args.output_root) / tag
-    output_dir.mkdir(parents=True, exist_ok=True)
     plot_path = output_dir / "interval_analysis.png"
     plot_analysis(
         times,
