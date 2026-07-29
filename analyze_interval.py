@@ -128,6 +128,110 @@ def automatic_detections(
     return selected, requested_winds
 
 
+def selection_funnel(
+    metadata_reader: drf.DigitalMetadataReader,
+    start_unix: float,
+    end_unix: float,
+) -> dict:
+    """Count candidates surviving each sequential automatic selection gate."""
+    phasecal = winds.load_phasecal()
+    counts = {
+        "two_second_records": 0,
+        "range_doppler_cells": 0,
+        "after_snr": 0,
+        "after_background_rejection": 0,
+        "after_coherence": 0,
+        "after_phase_closure": 0,
+        "locator_pixels_after_one_per_range_gate": 0,
+        "range_gates_tested_for_background": 0,
+        "range_gates_rejected_as_broad_background": 0,
+    }
+    t0_us = int(start_unix * 1e6)
+    t1_us = int(end_unix * 1e6)
+
+    for read_start in np.arange(t0_us, t1_us, int(winds.READ_DT * 1e6)):
+        read_end = min(read_start + int(winds.READ_DT * 1e6), t1_us)
+        for record in metadata_reader.read(read_start, read_end).values():
+            if not all(
+                name in record
+                for name in ("rdi1", "rdi3", "rdi4", "rvec", "fvec")
+            ):
+                continue
+            counts["two_second_records"] += 1
+            rdi1 = record["rdi1"] * np.exp(1j * phasecal[0])
+            rdi3 = record["rdi3"] * np.exp(1j * phasecal[2])
+            rdi4 = record["rdi4"] * np.exp(1j * phasecal[3])
+            rvec = record["rvec"]
+            fvec = record["fvec"]
+
+            try:
+                ri0 = np.where(rvec > winds.NOISER0)[0][0]
+                ri1 = np.where(rvec > winds.NOISER1)[0][0]
+                fi0 = np.where(fvec < -winds.NOISE_FMIN)[0][-1]
+                fi1 = np.where(fvec > winds.NOISE_FMIN)[0][0]
+            except IndexError:
+                continue
+            noise_power = 0.5 * (
+                np.mean(np.abs(rdi1[:fi0, ri0:ri1]) ** 2)
+                + np.mean(np.abs(rdi1[fi1:-1, ri0:ri1]) ** 2)
+            )
+            if noise_power <= 0 or not np.isfinite(noise_power):
+                continue
+
+            snr = (np.abs(rdi1) ** 2 - noise_power) / noise_power
+            rr, ff = np.meshgrid(rvec, fvec)
+            geometry = (
+                (rr > winds.RANGE_MIN)
+                & (rr < winds.RANGE_MAX)
+                & (np.abs(ff) <= winds.MAX_FIT_DOPPLER_HZ)
+            )
+            snr_pass = geometry & (snr > winds.SNR_THRESH)
+
+            strong_fraction = np.mean(snr > winds.SNR_THRESH, axis=0)
+            good_gate = strong_fraction < winds.BG_STRONG_FRAC_MAX
+            background_pass = snr_pass & good_gate[None, :]
+
+            cross_spectra, coherence = winds.three_dipole_coherence(
+                rdi1,
+                rdi3,
+                rdi4,
+            )
+            coherence_pass = background_pass & (
+                coherence >= winds.COHERENCE_MIN
+            )
+            closure = winds.phase_closure(*cross_spectra)
+            closure_pass = coherence_pass & (
+                closure <= winds.PHASE_CLOSURE_MAX
+            )
+
+            counts["range_doppler_cells"] += int(np.count_nonzero(geometry))
+            counts["after_snr"] += int(np.count_nonzero(snr_pass))
+            counts["after_background_rejection"] += int(
+                np.count_nonzero(background_pass)
+            )
+            counts["after_coherence"] += int(
+                np.count_nonzero(coherence_pass)
+            )
+            counts["after_phase_closure"] += int(
+                np.count_nonzero(closure_pass)
+            )
+            tested_gate = (rvec > winds.RANGE_MIN) & (rvec < winds.RANGE_MAX)
+            counts["range_gates_tested_for_background"] += int(
+                np.count_nonzero(tested_gate)
+            )
+            counts["range_gates_rejected_as_broad_background"] += int(
+                np.count_nonzero(tested_gate & ~good_gate)
+            )
+            candidate_indices = np.where(closure_pass)
+            counts["locator_pixels_after_one_per_range_gate"] += int(
+                len(np.unique(candidate_indices[1]))
+                if len(candidate_indices[0])
+                else 0
+            )
+
+    return counts
+
+
 def detection_statistics(detections: np.ndarray) -> dict:
     if len(detections) == 0:
         return {"count": 0}
@@ -404,6 +508,11 @@ def main() -> None:
             range_km,
             200.0,
             1500.0,
+        ),
+        "selection_funnel": selection_funnel(
+            metadata_reader,
+            start_unix,
+            end_unix,
         ),
         "automatic_detections": detection_statistics(detections),
         "wind_estimates": wind_statistics(wind_rows),
