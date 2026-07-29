@@ -17,7 +17,6 @@ WINDOW_S = 30 * 60
 DISPLAY_LIMIT_MS = 200.0
 PLOT_DIR = Path("/data2/plots/monitor")
 FULL_PLOT = PLOT_DIR / "latest_doppler_30m_50_200.png"
-FOCUSED_PLOT = PLOT_DIR / "latest_doppler_30m_75_125.png"
 DATA_FILE = PLOT_DIR / "latest_doppler_30m.npz"
 
 
@@ -45,16 +44,6 @@ def main() -> None:
         FULL_PLOT,
         DISPLAY_LIMIT_MS,
     )
-    focused = (ranges >= 75.0) & (ranges <= 125.0)
-    plot_dense_map(
-        times,
-        ranges[focused],
-        velocity[:, focused],
-        start,
-        end,
-        FOCUSED_PLOT,
-        DISPLAY_LIMIT_MS,
-    )
     np.savez_compressed(
         DATA_FILE,
         time_unix=times,
@@ -63,7 +52,6 @@ def main() -> None:
         sinusoid_snr=fit_snr,
     )
     print(f"Full Doppler RTI: {FULL_PLOT}")
-    print(f"Focused Doppler RTI: {FOCUSED_PLOT}")
     print(f"Dense fit cells: {velocity.size}")
 
 
