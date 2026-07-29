@@ -603,6 +603,48 @@ def plot_analysis(
     os.replace(temporary, output_path)
 
 
+def plot_range_band(
+    times: np.ndarray,
+    range_km: np.ndarray,
+    power_ratio_db: np.ndarray,
+    start: dt.datetime,
+    end: dt.datetime,
+    output_path: Path,
+    range_limits_km: tuple[float, float] = (75.0, 125.0),
+) -> None:
+    """Plot a focused RTI using the interval's 30–50 km background power."""
+    figure, axis = plt.subplots(figsize=(12, 5), constrained_layout=True)
+    image = axis.pcolormesh(
+        [
+            dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+            for value in times
+        ],
+        range_km,
+        power_ratio_db.T,
+        shading="auto",
+        cmap="turbo",
+        vmin=-10.0,
+        vmax=20.0,
+    )
+    axis.set_ylim(*range_limits_km)
+    axis.set_ylabel("One-way range (km)")
+    axis.set_xlabel("Time (UTC)")
+    axis.xaxis.set_major_formatter(
+        mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
+    )
+    axis.set_title(
+        "MF radar coherent RTI · "
+        f"{range_limits_km[0]:.0f}–{range_limits_km[1]:.0f} km · "
+        f"{start:%Y-%m-%d %H:%M}–{end:%H:%M} UTC"
+    )
+    colorbar = figure.colorbar(image, ax=axis, pad=0.01)
+    colorbar.set_label("Power / 30–50 km background (dB)")
+    temporary = output_path.with_suffix(".tmp.png")
+    figure.savefig(temporary, dpi=180)
+    plt.close(figure)
+    os.replace(temporary, output_path)
+
+
 def main() -> None:
     args = parse_args()
     if args.end <= args.start:
@@ -639,6 +681,15 @@ def main() -> None:
     background_power = float(np.mean(power[:, background_mask]))
     power_ratio_db = 10.0 * np.log10(
         np.maximum(power / background_power, 1e-20)
+    )
+    focused_plot_path = output_dir / "rti_75_125_km.png"
+    plot_range_band(
+        times,
+        range_km,
+        power_ratio_db,
+        args.start,
+        args.end,
+        focused_plot_path,
     )
 
     if args.materialize_metadata:
@@ -705,6 +756,7 @@ def main() -> None:
     )
     print(json.dumps(metrics, indent=2, allow_nan=False))
     print(f"Plot: {plot_path}")
+    print(f"Focused RTI: {focused_plot_path}")
 
 
 if __name__ == "__main__":
