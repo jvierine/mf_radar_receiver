@@ -177,6 +177,24 @@ def materialize_interval_metadata(
         REDUCTION_BLOCK_S * monitor.FS,
         dtype=np.int64,
     )
+    try:
+        existing_reader = drf.DigitalMetadataReader(str(metadata_dir))
+        existing = set(
+            existing_reader.read(
+                int(starts[0]),
+                int(starts[-1] + REDUCTION_BLOCK_S * monitor.FS),
+            )
+        )
+        starts = np.asarray(
+            [value for value in starts if int(value) not in existing],
+            dtype=np.int64,
+        )
+    except (IOError, OSError, ValueError):
+        pass
+    if len(starts) == 0:
+        print("All requested two-second metadata blocks already exist.")
+        return
+
     batch_size = max(1, workers * 10)
     completed = 0
     with concurrent.futures.ProcessPoolExecutor(
