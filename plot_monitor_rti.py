@@ -30,6 +30,7 @@ OFFSET = 8_900
 DEFAULT_CHANNELS = ("ch1", "ch3", "ch4")
 NOISE_RANGE_KM = (250.0, 1400.0)
 NOISE_PERCENTILE = 20.0
+THIRTY_MINUTE_NOISE_RANGE_KM = (30.0, 50.0)
 
 
 def parse_args() -> argparse.Namespace:
@@ -107,6 +108,7 @@ def plot_rti(
     title: str,
     snr_min_db: float,
     snr_max_db: float,
+    fixed_noise_power: float | None = None,
 ) -> None:
     range_km = (
         np.arange(power.shape[1], dtype=np.float64)
@@ -116,7 +118,10 @@ def plot_rti(
     )
     mask = range_km <= maximum_range_km
     noise_mask = (range_km >= NOISE_RANGE_KM[0]) & (range_km <= NOISE_RANGE_KM[1])
-    noise_power = np.nanpercentile(power[:, noise_mask], NOISE_PERCENTILE, axis=1)
+    if fixed_noise_power is None:
+        noise_power = np.nanpercentile(power[:, noise_mask], NOISE_PERCENTILE, axis=1)
+    else:
+        noise_power = np.full(power.shape[0], fixed_noise_power, dtype=np.float64)
     noise_power = np.maximum(noise_power, 1e-20)
     signal_power = power[:, mask] - noise_power[:, np.newaxis]
     snr_linear = np.maximum(signal_power / noise_power[:, np.newaxis], 1e-20)
@@ -234,6 +239,19 @@ def main() -> None:
     )
     recent = times >= times[-1] - 30 * 60
     if np.count_nonzero(recent) >= 2:
+        range_km = (
+            np.arange(power.shape[1], dtype=np.float64)
+            * DECIMATION
+            * constants.c
+            / (2.0 * FS * 1_000.0)
+        )
+        background_mask = (
+            (range_km >= THIRTY_MINUTE_NOISE_RANGE_KM[0])
+            & (range_km <= THIRTY_MINUTE_NOISE_RANGE_KM[1])
+        )
+        thirty_minute_noise_power = float(
+            np.nanmean(power[recent][:, background_mask])
+        )
         plot_rti(
             times[recent],
             power[recent],
@@ -242,7 +260,10 @@ def main() -> None:
             "Ramfjordmoen MF radar · latest 30 minutes · 0–200 km",
             -3.0,
             20.0,
+            fixed_noise_power=thirty_minute_noise_power,
         )
+    else:
+        thirty_minute_noise_power = None
 
     generated_at = dt.datetime.now(dt.timezone.utc)
     status = {
@@ -263,6 +284,9 @@ def main() -> None:
         "full_range_snr_limits_db": [-3.0, 35.0],
         "mesosphere_snr_limits_db": [-3.0, 20.0],
         "mesosphere_30m_time_bins": int(np.count_nonzero(recent)),
+        "mesosphere_30m_noise_method": "mean_power_over_time_and_range",
+        "mesosphere_30m_noise_range_km": list(THIRTY_MINUTE_NOISE_RANGE_KM),
+        "mesosphere_30m_noise_power": thirty_minute_noise_power,
     }
     atomic_json(output_dir / "rti_status.json", status)
     print(
