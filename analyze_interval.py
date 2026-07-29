@@ -18,7 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.signal as signal
+from scipy.ndimage import convolve1d
 
 import mf_conf as mc
 import calc_rti as crti
@@ -106,11 +106,13 @@ def reduce_block(i0: int) -> tuple[int, dict]:
         voltage = voltage_blocks[channel]
         voltage[:, : crti.GC] = 0.0
         voltage *= phase_correction[:, None]
-        filtered = signal.convolve(
+        filtered = convolve1d(
             voltage,
-            _worker_lpf[None, :],
-            mode="same",
-            method="direct",
+            _worker_lpf,
+            axis=1,
+            mode="constant",
+            cval=0.0,
+            origin=-1,
         )
         decimated = filtered[:, :: crti.DEC]
         n_integrations = len(decimated) // crti.N_CI
