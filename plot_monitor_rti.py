@@ -188,19 +188,35 @@ def plot_rti(
     if finite.size == 0:
         raise RuntimeError("RTI contains no finite samples")
 
-    dates = [dt.datetime.fromtimestamp(int(value), tz=dt.timezone.utc) for value in times]
+    date_numbers = mdates.date2num(times.astype("datetime64[s]"))
+    half_step_days = (
+        0.5 * float(np.median(np.diff(date_numbers)))
+        if len(date_numbers) > 1
+        else 0.5 / (24.0 * 60.0)
+    )
+    range_step_km = (
+        float(np.median(np.diff(range_km[mask])))
+        if np.count_nonzero(mask) > 1
+        else DECIMATION * constants.c / (2.0 * FS * 1_000.0)
+    )
     figure, axis = plt.subplots(figsize=(15, 5.8), facecolor="#070b14")
     axis.set_facecolor("#050810")
-    mesh = axis.pcolormesh(
-        dates,
-        range_km[mask],
+    mesh = axis.imshow(
         power_ratio_db,
+        extent=(
+            date_numbers[0] - half_step_days,
+            date_numbers[-1] + half_step_days,
+            range_km[mask][0] - 0.5 * range_step_km,
+            range_km[mask][-1] + 0.5 * range_step_km,
+        ),
+        origin="lower",
+        aspect="auto",
+        interpolation="nearest",
         cmap="plasma",
-        shading="auto",
         vmin=display_min_db,
         vmax=display_max_db,
-        rasterized=True,
     )
+    axis.xaxis_date()
     axis.set_ylim(0, maximum_range_km)
     axis.set_title(title, color="#edf4ff", fontsize=17, pad=14, weight="semibold")
     axis.set_xlabel("Time (UTC)", color="#b7c5d9", labelpad=9)
