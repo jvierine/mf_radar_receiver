@@ -109,24 +109,33 @@ def process_time_bin(
         for channel in channels
     }
     first_sample = unix_time * FS + OFFSET
-
-    for ipp_index in range(averages):
-        sample = first_sample + ipp_index * IPP_SAMPLES
-        tx_voltage = (
+    block_samples = averages * IPP_SAMPLES
+    voltage_blocks = {
+        channel: (
+            reader.read_vector_c81d(first_sample, block_samples, channel)
+            - mc.dc_offset
+        ).reshape(averages, IPP_SAMPLES)
+        for channel in channels
+    }
+    tx_block = (
+        voltage_blocks[TX_REFERENCE_CHANNEL]
+        if TX_REFERENCE_CHANNEL in voltage_blocks
+        else (
             reader.read_vector_c81d(
-                sample, IPP_SAMPLES, TX_REFERENCE_CHANNEL
+                first_sample,
+                block_samples,
+                TX_REFERENCE_CHANNEL,
             )
             - mc.dc_offset
-        )
+        ).reshape(averages, IPP_SAMPLES)
+    )
+
+    for ipp_index in range(averages):
+        tx_voltage = tx_block[ipp_index]
         tx_phase = np.angle(np.mean(tx_voltage[:TX_REFERENCE_SAMPLES]))
 
         for channel in channels:
-            voltage = (
-                tx_voltage.copy()
-                if channel == TX_REFERENCE_CHANNEL
-                else reader.read_vector_c81d(sample, IPP_SAMPLES, channel)
-                - mc.dc_offset
-            )
+            voltage = voltage_blocks[channel][ipp_index].copy()
             voltage[:GROUND_CLUTTER_SAMPLES] = 0.0
             filtered = np.convolve(
                 np.exp(-1j * tx_phase) * voltage,
