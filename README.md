@@ -57,12 +57,12 @@ advances that cursor one block at a time only when the one-minute system load
 is below 75% of the available CPU count. Realtime latency is therefore bounded
 by at most one in-progress historical block.
 
-The wind timer follows the same policy: it processes the newest complete
-ten-minute interval first and maintains a separate rolling 48-hour realtime
-product under `/data2/products/winds/3ch_coherent_realtime/`. Each timer run
-may process at most one historical ten-minute block afterward, and only when
-CPU headroom is available. Historical plots cannot overwrite the realtime
-monitor products.
+The wind timer follows the same policy: it first processes a rolling ten-minute
+window ending at the newest reduced two-second sample and maintains a separate
+rolling 48-hour realtime product under
+`/data2/products/winds/3ch_coherent_realtime/`. Each timer run may process at
+most one historical ten-minute block afterward, and only when CPU headroom is
+available. Historical plots cannot overwrite the realtime monitor products.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  

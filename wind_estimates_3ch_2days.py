@@ -70,6 +70,7 @@ ALTITUDE_CUT_WINDOW_S = 30 * 60
 REALTIME_RETENTION_S = 48 * 3600
 BACKFILL_LOAD_FRACTION = 0.75
 HISTORICAL_BLOCKS_PER_RUN = 1
+REALTIME_END_ALIGNMENT_S = 2
 
 USE_BACKGROUND_REJECTION = True
 BG_STRONG_FRAC_MAX       = 0.05
@@ -801,9 +802,9 @@ def spare_cpu_available():
     return os.getloadavg()[0] < cpu_count * BACKFILL_LOAD_FRACTION
 
 
-def process_realtime_block(dmt, phasecal, pos_diffs, newest_complete_block):
-    """Process the newest complete ten-minute block before any backfill."""
-    block_end = newest_complete_block
+def process_realtime_block(dmt, phasecal, pos_diffs, realtime_end):
+    """Process a rolling ten-minute window at the data head before backfill."""
+    block_end = realtime_end
     block_start = block_end - WIND_DT
     det_file = os.path.join(REALTIME_OUTDIR, "detections_48h.npy")
     wind_file = os.path.join(REALTIME_OUTDIR, "winds_48h.npy")
@@ -892,11 +893,15 @@ def main():
     print(f"Newest available data: {unix_to_datetime(newest_available)} UT\n")
 
     newest_complete_block = np.floor(newest_available / WIND_DT) * WIND_DT
+    realtime_end = (
+        np.floor(newest_available / REALTIME_END_ALIGNMENT_S)
+        * REALTIME_END_ALIGNMENT_S
+    )
     process_realtime_block(
         dmt,
         phasecal,
         pos_diffs,
-        newest_complete_block,
+        realtime_end,
     )
     if not spare_cpu_available():
         print("Skipping historical backfill: CPU load is above the headroom limit.")
