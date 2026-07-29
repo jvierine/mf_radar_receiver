@@ -718,7 +718,9 @@ def plot_altitude_cuts(
         fraction=0.035,
         pad=0.035,
     )
-    colorbar.set_label("Radial velocity (m/s)", color="#b7c5d9")
+    colorbar.set_label(
+        "Monostatic Doppler velocity (m/s)", color="#b7c5d9"
+    )
     colorbar.ax.tick_params(colors="#8fa1ba")
     colorbar.outline.set_edgecolor("#314563")
     figure.subplots_adjust(left=0.08, right=0.88, bottom=0.07, top=0.91, wspace=0.12, hspace=0.16)
@@ -771,7 +773,9 @@ def plot_window(wind_rows, window_start_unix, window_end_unix, plot_file):
         ax.set_ylabel("Height (km)")
         ax.set_ylim(HEIGHT_MIN, HEIGHT_MAX)
         ax.grid(True, alpha=0.2)
-        fig.colorbar(pc, ax=ax).set_label("m/s")
+        fig.colorbar(pc, ax=ax).set_label(
+            "Monostatic Doppler velocity (m/s)"
+        )
 
     axes[-1].set_xlabel("Time UT")
     axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))

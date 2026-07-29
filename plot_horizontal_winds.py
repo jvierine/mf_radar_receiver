@@ -96,7 +96,7 @@ def _plot_one_height(det_h, h0, block_start_unix, out_path):
                         vmin=VMIN, vmax=VMAX,
                         s=8, alpha=0.7, rasterized=True)
         cb = fig.colorbar(sc, ax=ax, fraction=0.046, pad=0.04)
-        cb.set_label("Radial velocity (m/s)", fontsize=9)
+        cb.set_label("Monostatic Doppler velocity (m/s)", fontsize=9)
 
     # Formatting
     ax.set_xlim(-FIELD_EXTENT, FIELD_EXTENT)

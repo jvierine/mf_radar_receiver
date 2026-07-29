@@ -569,7 +569,7 @@ def plot_analysis(
             linewidths=0,
         )
         figure.colorbar(positions, ax=axes[2], pad=0.01).set_label(
-            "Radial velocity (m/s)"
+            "Monostatic Doppler velocity (m/s)"
         )
     else:
         axes[2].text(

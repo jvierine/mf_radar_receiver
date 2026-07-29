@@ -166,17 +166,20 @@
         <header>
           <div>
             <span class="channel-id">Altitude cuts · latest 30 minutes</span>
-            <h3>Echo positions and radial velocities</h3>
+            <h3>Echo positions and Doppler velocities</h3>
           </div>
           <span class="freshness" id="altitude_cuts-freshness">—</span>
         </header>
         <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open altitude-cut echo position plots">
-          <img id="altitude_cuts-image" src="latest_altitude_cuts_30m.png" alt="Echo positions and radial velocities at 90, 100, 110, and 120 kilometres altitude">
+          <img id="altitude_cuts-image" src="latest_altitude_cuts_30m.png" alt="Echo positions and monostatic Doppler velocities at 90, 100, 110, and 120 kilometres altitude">
         </button>
         <p class="plot-method">
           Four geographic cuts centered at 90, 100, 110, and 120 km, each
           accepting echoes within ±2 km. East–west position is horizontal,
-          north–south position is vertical, and color is fitted radial velocity.
+          north–south position is vertical, and color is monostatic Doppler
+          velocity in m/s. It is converted from the fitted Doppler frequency
+          using v<sub>r</sub> = −λf<sub>D</sub>/2; the factor of two accounts
+          for the outward and return propagation paths.
           The MF radar is at the origin. Only automatically accepted echo
           snippets from the latest 30 minutes of processed data are included.
         </p>
