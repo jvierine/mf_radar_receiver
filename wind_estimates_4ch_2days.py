@@ -12,7 +12,7 @@ import image_help_4ch as ih
 
 
 
-OUTDIR = "/data2/plots/realtime_winds/4ch_2day_plots"
+OUTDIR = "/data2/products/winds/4ch_2day"
 os.makedirs(OUTDIR, exist_ok=True)
 
 # First date to process (inclusive, UTC midnight).
