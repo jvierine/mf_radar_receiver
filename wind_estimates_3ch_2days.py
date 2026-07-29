@@ -615,6 +615,9 @@ def plot_altitude_cuts(detections, window_end_unix, plot_file):
     if len(recent) == 0:
         return
 
+    velocity_limit = float(
+        np.clip(np.nanpercentile(np.abs(recent[:, 4]), 98.0), 20.0, 300.0)
+    )
     figure, axes = plt.subplots(
         2,
         2,
@@ -635,8 +638,8 @@ def plot_altitude_cuts(detections, window_end_unix, plot_file):
             c=selected[:, 4],
             s=15,
             cmap="seismic",
-            vmin=-MAX_RADIAL_VELOCITY_MS,
-            vmax=MAX_RADIAL_VELOCITY_MS,
+            vmin=-velocity_limit,
+            vmax=velocity_limit,
             linewidths=0,
             alpha=0.88,
             rasterized=True,
