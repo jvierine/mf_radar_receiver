@@ -110,55 +110,29 @@
         </footer>
       </article>
 
-      <article class="plot-card selected-rti-card" data-plot="rti_selected">
-        <header>
-          <div>
-            <span class="channel-id">Wind selection</span>
-            <h3>Automatically accepted pixels</h3>
-          </div>
-          <span class="freshness" id="rti_selected-freshness">—</span>
-        </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open selected wind-processing pixels RTI">
-          <img id="rti_selected-image" src="latest_selected_wind_pixels.png" alt="Range-time-intensity plot of pixels automatically selected for wind processing">
-        </button>
-        <p class="plot-method">
-          Every pixel shown passed the SNR, three-dipole coherence, phase
-          closure, AoA fit, 70–150 km meteor-altitude, ambiguity-continuity,
-          and ±300 m/s bounded sinusoid-fit gates. This is exactly the same
-          latest-30-minute echo set shown in the position/velocity panels:
-          the union of the 90, 100, 110, and 120 km ±2 km cuts. Color is the
-          SNR of the coherently steered and summed three-dipole sinusoid.
-        </p>
-        <footer>
-          <time id="rti_selected-time">Awaiting plot metadata</time>
-          <span>Same echoes · 0–200 km · 30 minutes</span>
-        </footer>
-      </article>
-
       <article class="plot-card selected-rti-card" data-plot="altitude_cuts">
         <header>
           <div>
-            <span class="channel-id">Altitude cuts · latest 30 minutes</span>
-            <h3>Echo positions and Doppler velocities</h3>
+            <span class="channel-id">Interferometric imaging · latest 5 minutes</span>
+            <h3>Positions from synchronized analysis</h3>
           </div>
           <span class="freshness" id="altitude_cuts-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open altitude-cut echo position plots">
-          <img id="altitude_cuts-image" src="latest_altitude_cuts_30m.png" alt="Echo positions and monostatic Doppler velocities at 90, 100, 110, and 120 kilometres altitude">
+        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open latest five-minute interferometric echo positions">
+          <img id="altitude_cuts-image" src="latest_dense_positions_5m.png" alt="Interferometric echo positions from the latest five minutes, colored by monostatic Doppler velocity">
         </button>
         <p class="plot-method">
-          Four geographic cuts centered at 90, 100, 110, and 120 km, each
-          accepting echoes within ±2 km. East–west position is horizontal,
-          north–south position is vertical, and color is monostatic Doppler
-          velocity in m/s. It is converted from the fitted Doppler frequency
-          using v<sub>r</sub> = −λf<sub>D</sub>/2; the factor of two accounts
-          for the outward and return propagation paths.
-          The MF radar is at the origin. Only automatically accepted echo
-          snippets from the latest 30 minutes of processed data are included.
+          Positions come directly from the dense two-second field and its
+          normalized one-second Doppler fits, without the old selected-pixel
+          funnel. Three-channel complex voltage provides interferometric
+          phase; coherence, phase closure, 20° minimum elevation, and 70–150 km
+          geometric altitude retain physically imageable solutions.
+          East–west position is horizontal, north–south is vertical, and color
+          is monostatic Doppler velocity.
         </p>
         <footer>
           <time id="altitude_cuts-time">Awaiting plot metadata</time>
-          <span>±2 km slabs · 30-minute window</span>
+          <span>±200 km field · 5-minute window</span>
         </footer>
       </article>
 
@@ -170,7 +144,7 @@
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
           <img id="snr_doppler_dense-image" src="latest_snr_doppler_30m_0_200.png" alt="Synchronized two-second SNR and fitted-Doppler RTIs from 0 to 200 kilometres">
         </button>
         <p class="plot-method">

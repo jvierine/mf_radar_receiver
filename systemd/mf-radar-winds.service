@@ -7,7 +7,6 @@ Type=oneshot
 User=radar
 WorkingDirectory=/home/radar/src/mf_radar_receiver
 Environment=MPLBACKEND=Agg
-ExecStart=/home/radar/drf/bin/python /home/radar/src/mf_radar_receiver/wind_estimates_3ch_2days.py
 ExecStart=/home/radar/drf/bin/python /home/radar/src/mf_radar_receiver/plot_realtime_dense_doppler.py
 Nice=10
 IOSchedulingClass=idle

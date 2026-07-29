@@ -13,16 +13,10 @@ const plots = [
     file: "latest_rti_48h_mesosphere.png",
   },
   {
-    id: "rti_selected",
-    title: "Pixels accepted for wind processing",
-    label: "Same altitude-cut echoes · latest 30 min",
-    file: "latest_selected_wind_pixels.png",
-  },
-  {
     id: "altitude_cuts",
-    title: "Echo positions and radial velocities",
-    label: "90 / 100 / 110 / 120 km · latest 30 min",
-    file: "latest_altitude_cuts_30m.png",
+    title: "Interferometric echo positions",
+    label: "Synchronized analysis · latest 5 min",
+    file: "latest_dense_positions_5m.png",
   },
   {
     id: "snr_doppler_dense",

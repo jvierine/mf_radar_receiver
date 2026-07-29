@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import h5py
 import os
-import shutil
 import datetime as dt
 from scipy.ndimage import uniform_filter
 from scipy.optimize import minimize_scalar
@@ -20,8 +19,6 @@ OUTDIR = "/data2/products/winds/3ch_coherent_2day_z70"
 os.makedirs(OUTDIR, exist_ok=True)
 REALTIME_OUTDIR = "/data2/products/winds/3ch_coherent_realtime_z70"
 os.makedirs(REALTIME_OUTDIR, exist_ok=True)
-LATEST_SELECTED_RTI = "/data2/plots/monitor/latest_selected_wind_pixels.png"
-LATEST_ALTITUDE_CUTS = "/data2/plots/monitor/latest_altitude_cuts_30m.png"
 
 # First date to process (inclusive, UTC midnight).
 # The script produces one 2-day plot per 2-day window starting here,
@@ -65,9 +62,6 @@ MIN_AZIMUTH_SECTORS = 3
 AZIMUTH_SECTORS = 8
 MAX_GEOMETRY_CONDITION = 10.0
 MIN_VELOCITY_RESIDUAL_MS = 10.0
-ALTITUDE_CUT_CENTERS_KM = (90.0, 100.0, 110.0, 120.0)
-ALTITUDE_CUT_HALF_WIDTH_KM = 2.0
-ALTITUDE_CUT_WINDOW_S = 30 * 60
 REALTIME_RETENTION_S = 48 * 3600
 BACKFILL_LOAD_FRACTION = 0.75
 HISTORICAL_BLOCKS_PER_RUN = 1
@@ -588,182 +582,6 @@ def latest_accepted_wind_profile(wind_rows):
     return np.asarray(rows) if rows else None
 
 
-def plot_selected_rti(
-    detections,
-    window_start_unix,
-    window_end_unix,
-    plot_file,
-    publish_latest=True,
-):
-    """Plot only the automatically accepted pixels used by the wind fit."""
-    if detections is None or detections.size == 0:
-        return
-    mask = (
-        (detections[:, 0] >= window_start_unix)
-        & (detections[:, 0] < window_end_unix)
-    )
-    selected = detections[mask]
-    if len(selected) == 0:
-        return
-
-    snr_db = 10.0 * np.log10(np.maximum(selected[:, 5], 1e-20))
-    figure, axis = plt.subplots(figsize=(14, 5), facecolor="#070b14")
-    axis.set_facecolor("#050810")
-    pixels = axis.scatter(
-        [unix_to_datetime(value) for value in selected[:, 0]],
-        selected[:, 9],
-        c=snr_db,
-        s=5,
-        marker="s",
-        linewidths=0,
-        cmap="plasma",
-        vmin=10,
-        vmax=30,
-        rasterized=True,
-    )
-    axis.set_title("Automatically selected wind-processing pixels")
-    axis.set_xlabel("Time UT")
-    axis.set_ylabel("One-way slant range (km)")
-    axis.set_ylim(0, 200)
-    axis.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d\n%H:%M"))
-    axis.tick_params(colors="#8fa1ba")
-    axis.xaxis.label.set_color("#b7c5d9")
-    axis.yaxis.label.set_color("#b7c5d9")
-    axis.title.set_color("#edf4ff")
-    for spine in axis.spines.values():
-        spine.set_color("#314563")
-    axis.grid(color="#ffffff", alpha=0.07)
-    colorbar = figure.colorbar(pixels, ax=axis)
-    colorbar.set_label("Beamformed sinusoid SNR (dB)", color="#b7c5d9")
-    colorbar.ax.tick_params(colors="#8fa1ba")
-    colorbar.outline.set_edgecolor("#314563")
-    figure.tight_layout()
-    figure.savefig(plot_file, dpi=180, facecolor=figure.get_facecolor())
-    plt.close(figure)
-    if publish_latest:
-        os.makedirs(os.path.dirname(LATEST_SELECTED_RTI), exist_ok=True)
-        temporary = LATEST_SELECTED_RTI + ".tmp"
-        shutil.copy2(plot_file, temporary)
-        os.replace(temporary, LATEST_SELECTED_RTI)
-
-
-def altitude_cut_echoes(detections, window_end_unix):
-    """Return the exact echo set shown by the four altitude-cut panels."""
-    window_start_unix = window_end_unix - ALTITUDE_CUT_WINDOW_S
-    recent = detections[
-        (detections[:, 0] >= window_start_unix)
-        & (detections[:, 0] <= window_end_unix)
-    ]
-    if len(recent) == 0:
-        return recent
-    in_any_cut = np.zeros(len(recent), dtype=bool)
-    for altitude in ALTITUDE_CUT_CENTERS_KM:
-        in_any_cut |= (
-            np.abs(recent[:, 3] - altitude) <= ALTITUDE_CUT_HALF_WIDTH_KM
-        )
-    return recent[in_any_cut]
-
-
-def plot_altitude_cuts(
-    detections,
-    window_end_unix,
-    plot_file,
-    publish_latest=True,
-):
-    """Plot accepted echo positions and radial velocities at four altitudes."""
-    if detections is None or detections.size == 0:
-        return
-    window_start_unix = window_end_unix - ALTITUDE_CUT_WINDOW_S
-    recent = altitude_cut_echoes(detections, window_end_unix)
-    if len(recent) == 0:
-        return
-
-    velocity_limit = float(
-        np.clip(np.nanpercentile(np.abs(recent[:, 4]), 98.0), 20.0, 300.0)
-    )
-    figure, axes = plt.subplots(
-        2,
-        2,
-        figsize=(11, 10),
-        sharex=True,
-        sharey=True,
-        facecolor="#070b14",
-    )
-    scatter = None
-    for axis, altitude in zip(axes.flat, ALTITUDE_CUT_CENTERS_KM):
-        axis.set_facecolor("#050810")
-        selected = recent[
-            np.abs(recent[:, 3] - altitude) <= ALTITUDE_CUT_HALF_WIDTH_KM
-        ]
-        scatter = axis.scatter(
-            selected[:, 1],
-            selected[:, 2],
-            c=selected[:, 4],
-            s=15,
-            cmap="seismic",
-            vmin=-velocity_limit,
-            vmax=velocity_limit,
-            linewidths=0,
-            alpha=0.88,
-            rasterized=True,
-        )
-        axis.scatter(
-            [0],
-            [0],
-            marker="+",
-            s=90,
-            linewidths=1.4,
-            color="#edf4ff",
-            label="MF radar",
-        )
-        axis.set_title(
-            f"{altitude:.0f} ± {ALTITUDE_CUT_HALF_WIDTH_KM:.0f} km · "
-            f"N={len(selected)}",
-            color="#edf4ff",
-        )
-        axis.set_xlim(-200, 200)
-        axis.set_ylim(-200, 200)
-        axis.set_aspect("equal", adjustable="box")
-        axis.tick_params(colors="#8fa1ba")
-        axis.grid(color="#ffffff", alpha=0.07)
-        for spine in axis.spines.values():
-            spine.set_color("#314563")
-
-    for axis in axes[-1, :]:
-        axis.set_xlabel("East–west position (km)", color="#b7c5d9")
-    for axis in axes[:, 0]:
-        axis.set_ylabel("North–south position (km)", color="#b7c5d9")
-
-    start_text = unix_to_datetime(window_start_unix).strftime("%Y-%m-%d %H:%M")
-    end_text = unix_to_datetime(window_end_unix).strftime("%H:%M UTC")
-    figure.suptitle(
-        f"Accepted echo positions and radial velocities · {start_text}–{end_text}",
-        color="#edf4ff",
-        fontsize=15,
-    )
-    colorbar = figure.colorbar(
-        scatter,
-        ax=axes,
-        fraction=0.035,
-        pad=0.035,
-    )
-    colorbar.set_label(
-        "Monostatic Doppler velocity (m/s)", color="#b7c5d9"
-    )
-    colorbar.ax.tick_params(colors="#8fa1ba")
-    colorbar.outline.set_edgecolor("#314563")
-    figure.subplots_adjust(left=0.08, right=0.88, bottom=0.07, top=0.91, wspace=0.12, hspace=0.16)
-    figure.savefig(plot_file, dpi=180, facecolor=figure.get_facecolor())
-    plt.close(figure)
-
-    if publish_latest:
-        os.makedirs(os.path.dirname(LATEST_ALTITUDE_CUTS), exist_ok=True)
-        temporary = LATEST_ALTITUDE_CUTS + ".tmp"
-        shutil.copy2(plot_file, temporary)
-        os.replace(temporary, LATEST_ALTITUDE_CUTS)
-
-
-
 def plot_window(wind_rows, window_start_unix, window_end_unix, plot_file):
     if wind_rows is None or wind_rows.shape[0] == 0:
         print("  No wind data for this window, skipping plot.")
@@ -872,8 +690,6 @@ def process_realtime_block(dmt, phasecal, pos_diffs, realtime_end):
     det_file = os.path.join(REALTIME_OUTDIR, "detections_48h.npy")
     wind_file = os.path.join(REALTIME_OUTDIR, "winds_48h.npy")
     wind_plot = os.path.join(REALTIME_OUTDIR, "winds_48h.png")
-    selected_plot = os.path.join(REALTIME_OUTDIR, "selected_pixels_48h.png")
-    altitude_plot = os.path.join(REALTIME_OUTDIR, "altitude_cuts_30m.png")
 
     detections = load_product(det_file, 21)
     winds = load_product(wind_file, 5)
@@ -918,25 +734,6 @@ def process_realtime_block(dmt, phasecal, pos_diffs, realtime_end):
             block_end,
             wind_plot,
         )
-    if len(detections):
-        display_end = min(block_end, np.max(detections[:, 0]))
-        displayed_echoes = altitude_cut_echoes(detections, display_end)
-        plot_selected_rti(
-            displayed_echoes,
-            display_end - ALTITUDE_CUT_WINDOW_S,
-            display_end,
-            selected_plot,
-            publish_latest=True,
-        )
-        plot_altitude_cuts(
-            detections,
-            display_end,
-            altitude_plot,
-            publish_latest=True,
-        )
-
-
-
 def main():
     phasecal = load_phasecal()
 
@@ -989,13 +786,6 @@ def main():
         plot_file = os.path.join(
             OUTDIR, f"{date_tag}_mf_coherent_echo_winds_2day_3ch.png"
         )
-        selected_rti_file = os.path.join(
-            OUTDIR, f"{date_tag}_selected_wind_pixels_rti_2day_3ch.png"
-        )
-        altitude_cuts_file = os.path.join(
-            OUTDIR, f"{date_tag}_altitude_cuts_30m_3ch.png"
-        )
-
         # Load saved progress for this window if it exists
         saved_winds = np.load(wind_file) if os.path.exists(wind_file) else None
         saved_dets  = np.load(det_file)  if os.path.exists(det_file)  else None
@@ -1066,24 +856,6 @@ def main():
                 & (all_winds[:, 0] <  window_end)
             )
             plot_window(all_winds[mask], window_start, processing_end, plot_file)
-            plot_selected_rti(
-                all_dets,
-                window_start,
-                processing_end,
-                selected_rti_file,
-                publish_latest=False,
-            )
-            latest_detection_time = (
-                np.max(all_dets[:, 0])
-                if all_dets is not None and all_dets.size
-                else processing_end
-            )
-            plot_altitude_cuts(
-                all_dets,
-                latest_detection_time,
-                altitude_cuts_file,
-                publish_latest=False,
-            )
 
         if historical_blocks_processed >= HISTORICAL_BLOCKS_PER_RUN:
             break
