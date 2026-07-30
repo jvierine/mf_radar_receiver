@@ -30,6 +30,18 @@ const plots = [
     label: "All peak delays + correlations · latest 15 min",
     file: "latest_fading_correlation_diagnostics_15m.png",
   },
+  {
+    id: "fading_wind_48h",
+    title: "Fading-inferred horizontal wind",
+    label: "15-minute estimates · latest 48 h",
+    file: "latest_fading_wind_48h.png",
+  },
+  {
+    id: "fading_wind_quality_48h",
+    title: "Fading-wind quality panels",
+    label: "Delays, correlations, residuals + acceptance · latest 48 h",
+    file: "latest_fading_wind_quality_48h.png",
+  },
 ];
 
 const dialog = document.querySelector("#plot-dialog");

@@ -222,6 +222,56 @@
         </footer>
       </article>
 
+      <article class="plot-card selected-rti-card" data-plot="fading_wind_48h">
+        <header>
+          <div>
+            <span class="channel-id">Horizontal wind · latest 48 hours</span>
+            <h3>Fading-inferred zonal and meridional wind</h3>
+          </div>
+          <span class="freshness" id="fading_wind_48h-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="5" aria-label="Open 48-hour fading-inferred horizontal winds">
+          <img id="fading_wind_48h-image" src="latest_fading_wind_48h.png" alt="Zonal and meridional wind estimates over the latest 48 hours">
+        </button>
+        <p class="plot-method">
+          Each column uses one non-overlapping 15-minute integration of the
+          three dipoles’ power-fading patterns. The evolving elliptical
+          correlation fit provides ground-pattern velocity, which is divided
+          by two for neutral wind. Blank cells are either unavailable metadata
+          or estimates rejected by the automatic correlation and fit-residual
+          tests. Historical gaps are retried during later monitor refreshes.
+        </p>
+        <footer>
+          <time id="fading_wind_48h-time">Awaiting plot metadata</time>
+          <span>15-minute integration · 70–120 km</span>
+        </footer>
+      </article>
+
+      <article class="plot-card selected-rti-card" data-plot="fading_wind_quality_48h">
+        <header>
+          <div>
+            <span class="channel-id">Wind quality · latest 48 hours</span>
+            <h3>Separate correlation and acceptance panels</h3>
+          </div>
+          <span class="freshness" id="fading_wind_quality_48h-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="6" aria-label="Open 48-hour fading-wind quality panels">
+          <img id="fading_wind_quality_48h-image" src="latest_fading_wind_quality_48h.png" alt="Separate baseline delays, peak correlations, fit residual, and wind acceptance panels">
+        </button>
+        <p class="plot-method">
+          The first three rows show delay and peak correlation separately for
+          ch1→ch3, ch1→ch4, and ch3→ch4. The final row shows normalized
+          evolving-ellipse fit RMSE and the resulting automatic
+          accepted/rejected mask. Delays and correlations are retained even
+          when the wind is rejected, allowing thresholds to be evaluated
+          without visual selection.
+        </p>
+        <footer>
+          <time id="fading_wind_quality_48h-time">Awaiting plot metadata</time>
+          <span>Eight quality panels · unmasked diagnostics</span>
+        </footer>
+      </article>
+
     </section>
 
     <section class="processing-note" aria-labelledby="processing-title">

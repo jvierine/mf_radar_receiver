@@ -19,6 +19,7 @@ import numpy as np
 
 import fading_wind
 import mf_conf as mc
+import plot_fading_wind_history as fading_history
 import plot_monitor_rti as monitor
 import radar_common as common
 from plot_dense_doppler import fit_common_sinusoid_fft
@@ -713,6 +714,11 @@ def main() -> None:
         meridional_wind_ms,
         start,
         end,
+    )
+    fading_history.update_history(
+        reader,
+        end_unix,
+        max_windows=4,
     )
     temporary_data = DATA_FILE.with_suffix(DATA_FILE.suffix + ".tmp")
     with h5py.File(temporary_data, "w") as handle:

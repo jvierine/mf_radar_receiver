@@ -27,6 +27,28 @@ MAX_LAG_S = 30.0
 MIN_PEAK_CORRELATION = 0.15
 MAX_FIT_RMSE = 0.35
 MAX_PATTERN_SPEED_MS = 600.0
+CORRELATION_SAMPLE_RATE_HZ = 4.0
+
+
+def _decimate_power(
+    power: np.ndarray,
+    sample_interval_s: float,
+) -> tuple[np.ndarray, float]:
+    decimation = max(
+        1,
+        int(round(1.0 / (CORRELATION_SAMPLE_RATE_HZ * sample_interval_s))),
+    )
+    if decimation == 1:
+        return power, sample_interval_s
+    usable = len(power) // decimation * decimation
+    return (
+        power[:usable].reshape(
+            usable // decimation,
+            decimation,
+            power.shape[1],
+        ).mean(axis=1),
+        sample_interval_s * decimation,
+    )
 
 
 def _normalized_correlation(
@@ -84,6 +106,10 @@ def cross_correlation_delays(
     sample_interval_s: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return sub-sample peak delay and peak coefficient for each baseline."""
+    power, sample_interval_s = _decimate_power(
+        np.asarray(power, dtype=np.float64),
+        sample_interval_s,
+    )
     maximum_lag_samples = int(round(MAX_LAG_S / sample_interval_s))
     delays_s = np.full(len(PAIR_INDICES), np.nan)
     peak_correlation = np.full(len(PAIR_INDICES), np.nan)
@@ -129,6 +155,7 @@ def fit_fading_window(
     power = np.asarray(power, dtype=np.float64)
     if power.ndim != 2 or power.shape[1] != len(CHANNEL_FIELDS):
         raise ValueError("power must have shape (time, three dipoles)")
+    power, sample_interval_s = _decimate_power(power, sample_interval_s)
     maximum_lag_samples = int(round(MAX_LAG_S / sample_interval_s))
     if len(power) < 4 * maximum_lag_samples:
         raise ValueError("fading window is too short")

@@ -76,6 +76,11 @@ The rolling 48-hour 0–200 km monitor product adds one ungated ten-second
 common-frequency Doppler fit per minute below the existing power RTI. Its
 incremental HDF5 state is stored on `/data2`.
 
+`plot_fading_wind_history.py` maintains a second rolling 48-hour HDF5 state
+for fading-inferred winds. It uses non-overlapping 15-minute integrations,
+always calculates the newest missing window first, and then backfills older
+missing windows. Wind and quality figures are regenerated after each update.
+
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  
 ![s-1734700848645636](https://github.com/user-attachments/assets/3fb0652c-c6c7-4874-8fba-ff8b9c5b3b52)

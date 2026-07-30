@@ -48,6 +48,12 @@ cross-correlation peak delay and peak coefficient for each of the three
 dipole baselines. This makes the raw information supporting—or contradicting—
 each fading-wind estimate directly visible.
 
+`latest_fading_wind_48h.png` contains zonal and meridional winds from
+non-overlapping 15-minute integrations. `latest_fading_wind_quality_48h.png`
+keeps the three baseline delays, three peak correlations, fit RMSE, and
+automatic acceptance mask in separate panels. The HDF5 state retries missing
+historical windows on subsequent refreshes.
+
 `latest_channel_snr_15m_0_300.png` shows channels 1–4 separately over the
 latest 15 minutes. Each column averages the full same 10-second interval used
 by the Doppler fit. Each channel is referenced to its own interval-mean power
