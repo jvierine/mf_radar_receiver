@@ -110,6 +110,31 @@
         </footer>
       </article>
 
+      <article class="plot-card selected-rti-card" data-plot="channel_snr">
+        <header>
+          <div>
+            <span class="channel-id">Receiver health · latest 30 minutes</span>
+            <h3>Dipoles and loop separately</h3>
+          </div>
+          <span class="freshness" id="channel_snr-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open separate SNR plots for all receiver channels">
+          <img id="channel_snr-image" src="latest_channel_snr_30m_0_300.png" alt="Separate noise-referenced power plots for dipoles on channels 1, 3, and 4 and the loop on channel 2">
+        </button>
+        <p class="plot-method">
+          Channels 1–4 are shown independently after transmit-phase correction,
+          filtering, decimation, and five-IPP coherent integration. Each panel
+          uses its own interval-mean 30–50 km background, with a common
+          −10…20 dB color scale. The title reports that channel’s absolute
+          background power in arbitrary dB units, making receiver gain and
+          noise changes visible as well as missing echoes.
+        </p>
+        <footer>
+          <time id="channel_snr-time">Awaiting plot metadata</time>
+          <span>Four channels · 0–300 km · 2-second cadence</span>
+        </footer>
+      </article>
+
       <article class="plot-card selected-rti-card" data-plot="snr_doppler_dense">
         <header>
           <div>
@@ -118,7 +143,7 @@
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
           <img id="snr_doppler_dense-image" src="latest_snr_doppler_30m_0_300.png" alt="Synchronized two-second SNR and fitted-Doppler RTIs from 0 to 300 kilometres">
         </button>
         <p class="plot-method">

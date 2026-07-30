@@ -35,4 +35,8 @@ one-second unit-RMS complex-voltage segment. The channel with the strongest
 sinusoid fit is displayed. Doppler uses a fixed monostatic radial-velocity
 scale of -200 to +200 m/s; noise-only cells are deliberately retained.
 
+`latest_channel_snr_30m_0_300.png` shows channels 1–4 separately over the
+latest 30 minutes. Each channel is referenced to its own interval-mean power
+between 30 and 50 km, while all panels share the same -10 to +20 dB scale.
+
 The old selected-pixel RTI and its realtime processing stage are not used.

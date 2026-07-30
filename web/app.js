@@ -13,6 +13,12 @@ const plots = [
     file: "latest_rti_48h_mesosphere.png",
   },
   {
+    id: "channel_snr",
+    title: "Receiver-channel SNR health",
+    label: "All dipoles + loop · latest 30 min · 0–300 km",
+    file: "latest_channel_snr_30m_0_300.png",
+  },
+  {
     id: "snr_doppler_dense",
     title: "SNR and dense fitted Doppler",
     label: "Two-second cadence · latest 30 min · 0–300 km",

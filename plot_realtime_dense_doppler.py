@@ -28,6 +28,7 @@ DISPLAY_LIMIT_MS = 200.0
 DISPLAY_RANGE_MAX_KM = 300.0
 PLOT_DIR = Path("/data2/plots/monitor")
 COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_30m_0_300.png"
+CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_30m_0_300.png"
 POSITIONS_PLOT = PLOT_DIR / "latest_dense_positions_5m.png"
 DATA_FILE = PLOT_DIR / "latest_doppler_30m.npz"
 SNR_STATE_FILE = PLOT_DIR / "rti_30m_2s_state.npz"
@@ -36,6 +37,159 @@ POSITION_FIT_SNR_MIN = 5.0
 POSITION_COHERENCE_MIN = 0.8
 POSITION_PHASE_CLOSURE_MAX = 0.35
 POSITION_PHASE_RESIDUAL_MAX = 0.35
+CHANNEL_HEALTH_FIELDS = (
+    ("rti1", "Channel 1 · MF3 dipole"),
+    ("rti2", "Channel 2 · loop"),
+    ("rti3", "Channel 3 · MF1 dipole"),
+    ("rti4", "Channel 4 · MF2 dipole"),
+)
+
+
+def load_channel_power(
+    reader: drf.DigitalMetadataReader,
+    start_unix: float,
+    end_unix: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Return two-second power for every receiver channel and range gate."""
+    records = []
+    start_us = int(start_unix * 1e6)
+    end_us = int(end_unix * 1e6)
+    for chunk_start in np.arange(start_us, end_us, int(60e6)):
+        chunk_end = min(chunk_start + int(60e6), end_us)
+        metadata = reader.read(int(chunk_start), int(chunk_end) - 1)
+        for key in sorted(metadata):
+            record = metadata[key]
+            fields = [field for field, _ in CHANNEL_HEALTH_FIELDS]
+            if not all(field in record for field in (*fields, "rvec")):
+                continue
+            ranges = np.asarray(record["rvec"], dtype=np.float64)
+            mask = (ranges >= 0.0) & (ranges <= DISPLAY_RANGE_MAX_KM)
+            if not np.any(mask):
+                continue
+            power = np.asarray(
+                [
+                    np.mean(
+                        np.abs(np.asarray(record[field])[:, mask]) ** 2,
+                        axis=0,
+                    )
+                    for field in fields
+                ],
+                dtype=np.float32,
+            )
+            records.append(
+                (float(key) / 1e6 + 1.0, ranges[mask], power)
+            )
+
+    if not records:
+        raise RuntimeError("no four-channel metadata in requested interval")
+    range_km = max((row[1] for row in records), key=len)
+    power = np.full(
+        (len(records), len(CHANNEL_HEALTH_FIELDS), len(range_km)),
+        np.nan,
+        dtype=np.float32,
+    )
+    for row_index, (_, record_range, record_power) in enumerate(records):
+        indices = np.searchsorted(range_km, record_range)
+        if (
+            np.any(indices >= len(range_km))
+            or not np.allclose(range_km[indices], record_range)
+        ):
+            raise ValueError("incompatible range vectors within interval")
+        power[row_index][:, indices] = record_power
+    return (
+        np.asarray([row[0] for row in records], dtype=np.float64),
+        range_km,
+        power,
+    )
+
+
+def plot_channel_health(
+    times_unix: np.ndarray,
+    range_km: np.ndarray,
+    power: np.ndarray,
+    start: dt.datetime,
+    end: dt.datetime,
+) -> None:
+    """Plot separately noise-referenced power for all four receiver channels."""
+    noise_mask = (
+        (range_km >= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[0])
+        & (range_km <= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[1])
+    )
+    background_power = np.nanmean(
+        power[:, :, noise_mask],
+        axis=(0, 2),
+    )
+    power_ratio_db = 10.0 * np.log10(
+        np.maximum(
+            power / np.maximum(background_power[None, :, None], 1e-20),
+            1e-20,
+        )
+    )
+    time_values = [
+        dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+        for value in times_unix
+    ]
+    figure, axes = plt.subplots(
+        4,
+        1,
+        figsize=(15, 12),
+        sharex=True,
+        sharey=True,
+        facecolor="#070b14",
+        constrained_layout=True,
+    )
+    image = None
+    for channel_index, (axis, (_, label)) in enumerate(
+        zip(axes, CHANNEL_HEALTH_FIELDS)
+    ):
+        axis.set_facecolor("#050810")
+        image = axis.pcolormesh(
+            time_values,
+            range_km,
+            power_ratio_db[:, channel_index, :].T,
+            shading="nearest",
+            cmap="plasma",
+            vmin=monitor.THIRTY_MINUTE_POWER_RATIO_MIN_DB,
+            vmax=20.0,
+        )
+        noise_db = 10.0 * np.log10(
+            max(float(background_power[channel_index]), 1e-20)
+        )
+        axis.set_title(
+            f"{label} · background {noise_db:.1f} dB (arb. power)",
+            color="#edf4ff",
+        )
+        axis.set_xlim(start, end)
+        axis.set_ylim(0.0, DISPLAY_RANGE_MAX_KM)
+        axis.set_ylabel("Round-trip range (km)", color="#b7c5d9")
+        axis.tick_params(colors="#8fa1ba")
+        for spine in axis.spines.values():
+            spine.set_color("#314563")
+    axes[-1].set_xlabel("Time (UTC)", color="#b7c5d9")
+    axes[-1].xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
+    axes[-1].xaxis.set_major_formatter(
+        mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
+    )
+    colorbar = figure.colorbar(image, ax=axes, pad=0.01)
+    colorbar.set_label(
+        "Power / channel background (dB)",
+        color="#b7c5d9",
+    )
+    colorbar.ax.tick_params(colors="#8fa1ba")
+    figure.suptitle(
+        "Ramfjordmoen MF radar · receiver-channel health · latest 30 minutes",
+        color="#edf4ff",
+        fontsize=18,
+        weight="semibold",
+    )
+    temporary = CHANNEL_HEALTH_PLOT.with_suffix(".tmp.png")
+    figure.savefig(
+        temporary,
+        dpi=150,
+        facecolor=figure.get_facecolor(),
+    )
+    plt.close(figure)
+    os.replace(temporary, CHANNEL_HEALTH_PLOT)
 
 
 def plot_combined_rti(
@@ -392,7 +546,19 @@ def main() -> None:
         end_unix,
         (0.0, DISPLAY_RANGE_MAX_KM),
     )
+    channel_times, channel_ranges, channel_power = load_channel_power(
+        reader,
+        start_unix,
+        end_unix,
+    )
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
+    plot_channel_health(
+        channel_times,
+        channel_ranges,
+        channel_power,
+        start,
+        end,
+    )
     plot_combined_rti(
         times,
         ranges,
@@ -407,6 +573,7 @@ def main() -> None:
         velocity_ms=velocity,
         sinusoid_snr=fit_snr,
     )
+    print(f"Four-channel SNR health: {CHANNEL_HEALTH_PLOT}")
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
     print(f"Dense fit cells: {velocity.size}")
 
