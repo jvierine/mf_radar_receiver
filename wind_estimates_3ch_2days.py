@@ -11,6 +11,7 @@ from scipy.optimize import minimize_scalar
 import jcoord
 import mf_conf as mc
 import image_help as ih
+from hdf5_store import load_array, save_array
 
 
 
@@ -651,17 +652,14 @@ def empty_wind_block(block_start):
 def load_product(path, columns):
     if not os.path.exists(path):
         return np.empty((0, columns))
-    values = np.load(path)
+    values = load_array(path)
     if values.ndim != 2 or values.shape[1] != columns:
         return np.empty((0, columns))
     return values
 
 
 def save_product(path, values):
-    temporary = path + ".tmp"
-    with open(temporary, "wb") as handle:
-        np.save(handle, values)
-    os.replace(temporary, path)
+    save_array(path, values)
 
 
 def deduplicate_detections(detections):
@@ -687,8 +685,8 @@ def process_realtime_block(dmt, phasecal, pos_diffs, realtime_end):
     """Process a rolling ten-minute window at the data head before backfill."""
     block_end = realtime_end
     block_start = block_end - WIND_DT
-    det_file = os.path.join(REALTIME_OUTDIR, "detections_48h.npy")
-    wind_file = os.path.join(REALTIME_OUTDIR, "winds_48h.npy")
+    det_file = os.path.join(REALTIME_OUTDIR, "detections_48h.h5")
+    wind_file = os.path.join(REALTIME_OUTDIR, "winds_48h.h5")
     wind_plot = os.path.join(REALTIME_OUTDIR, "winds_48h.png")
 
     detections = load_product(det_file, 21)
@@ -781,14 +779,14 @@ def main():
         print(f"=== Window {start_dt:%Y-%m-%d} – {end_dt:%Y-%m-%d} ===")
 
         date_tag  = start_dt.strftime("%Y-%m-%d")
-        det_file  = os.path.join(OUTDIR, f"{date_tag}_detections_2day_3ch.npy")
-        wind_file = os.path.join(OUTDIR, f"{date_tag}_winds_2day_3ch.npy")
+        det_file  = os.path.join(OUTDIR, f"{date_tag}_detections_2day_3ch.h5")
+        wind_file = os.path.join(OUTDIR, f"{date_tag}_winds_2day_3ch.h5")
         plot_file = os.path.join(
             OUTDIR, f"{date_tag}_mf_coherent_echo_winds_2day_3ch.png"
         )
         # Load saved progress for this window if it exists
-        saved_winds = np.load(wind_file) if os.path.exists(wind_file) else None
-        saved_dets  = np.load(det_file)  if os.path.exists(det_file)  else None
+        saved_winds = load_array(wind_file) if os.path.exists(wind_file) else None
+        saved_dets  = load_array(det_file)  if os.path.exists(det_file)  else None
 
         if saved_winds is not None and saved_winds.size > 0:
             last_center = np.nanmax(saved_winds[:, 0])
@@ -841,8 +839,8 @@ def main():
                 all_winds = np.vstack([all_winds, wind_block])
 
             # Save progress after every block
-            np.save(det_file,  all_dets)
-            np.save(wind_file, all_winds)
+            save_array(det_file, all_dets)
+            save_array(wind_file, all_winds)
 
             next_block += WIND_DT
             historical_blocks_processed += 1

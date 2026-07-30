@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import h5py
 import os
 from pathlib import Path
 
@@ -103,6 +104,69 @@ def fit_sinusoid_bank(
         ) / denominator[curved]
         frequency[columns] += np.clip(offset, -1.0, 1.0) * step
 
+    model = np.exp(2j * np.pi * fit_times[:, None] * frequency[None, :])
+    amplitude = np.mean(np.conj(model) * normalized, axis=0)
+    residual = normalized - model * amplitude[None, :]
+    residual_power = np.maximum(
+        np.mean(np.abs(residual) ** 2, axis=0),
+        1e-30,
+    )
+    snr = np.abs(amplitude) ** 2 / residual_power
+    frequency[~valid] = np.nan
+    snr[~valid] = np.nan
+    return frequency, snr
+
+
+def fit_sinusoid_fft(
+    times: np.ndarray,
+    voltage: np.ndarray,
+    maximum_frequency_hz: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Fit a sinusoid to long voltage records using a zero-padded FFT seed."""
+    times = np.asarray(times, dtype=np.float64)
+    voltage = np.asarray(voltage, dtype=np.complex128)
+    if voltage.ndim != 2 or voltage.shape[0] != len(times):
+        raise ValueError("voltage must have shape (time, series)")
+    if len(times) < 2:
+        raise ValueError("at least two voltage samples are required")
+
+    sample_interval = float(np.median(np.diff(times)))
+    scale = np.sqrt(np.mean(np.abs(voltage) ** 2, axis=0))
+    valid = np.isfinite(scale) & (scale > 0)
+    normalized = np.zeros_like(voltage)
+    normalized[:, valid] = voltage[:, valid] / scale[valid]
+
+    nfft = max(2048, 2 ** int(np.ceil(np.log2(len(times) * 8))))
+    frequency_grid = np.fft.fftshift(
+        np.fft.fftfreq(nfft, d=sample_interval)
+    )
+    spectrum = np.fft.fftshift(
+        np.fft.fft(normalized, n=nfft, axis=0),
+        axes=0,
+    )
+    allowed = np.flatnonzero(
+        np.abs(frequency_grid) <= maximum_frequency_hz
+    )
+    allowed_power = np.abs(spectrum[allowed]) ** 2
+    peak = np.argmax(allowed_power, axis=0)
+    frequency = frequency_grid[allowed[peak]].copy()
+    step = frequency_grid[1] - frequency_grid[0]
+
+    interior = valid & (peak > 0) & (peak < len(allowed) - 1)
+    columns = np.flatnonzero(interior)
+    if len(columns):
+        center = allowed_power[peak[columns], columns]
+        lower = allowed_power[peak[columns] - 1, columns]
+        upper = allowed_power[peak[columns] + 1, columns]
+        denominator = lower - 2.0 * center + upper
+        offset = np.zeros(len(columns), dtype=np.float64)
+        curved = np.abs(denominator) > 1e-30
+        offset[curved] = 0.5 * (
+            lower[curved] - upper[curved]
+        ) / denominator[curved]
+        frequency[columns] += np.clip(offset, -1.0, 1.0) * step
+
+    fit_times = times - times[0]
     model = np.exp(2j * np.pi * fit_times[:, None] * frequency[None, :])
     amplitude = np.mean(np.conj(model) * normalized, axis=0)
     residual = normalized - model * amplitude[None, :]
@@ -283,14 +347,26 @@ def main() -> None:
         args.output,
         args.display_max_velocity,
     )
-    data_output = args.data_output or args.output.with_suffix(".npz")
-    np.savez_compressed(
-        data_output,
-        time_unix=values[0],
-        range_km=values[1],
-        velocity_ms=values[2],
-        sinusoid_snr=values[3],
-    )
+    data_output = args.data_output or args.output.with_suffix(".h5")
+    temporary = data_output.with_suffix(data_output.suffix + ".tmp")
+    with h5py.File(temporary, "w") as handle:
+        handle.create_dataset("time_unix", data=values[0])
+        handle.create_dataset("range_km", data=values[1])
+        handle.create_dataset(
+            "velocity_ms",
+            data=values[2],
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "sinusoid_snr",
+            data=values[3],
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+    os.replace(temporary, data_output)
     print(f"Plot: {args.output}")
     print(f"Data: {data_output}")
     print(f"Cells: {values[2].size}")

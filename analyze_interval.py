@@ -24,6 +24,7 @@ import mf_conf as mc
 import calc_rti as crti
 import plot_monitor_rti as monitor
 import wind_estimates_3ch_2days as winds
+from hdf5_store import save_array
 
 
 DEFAULT_OUTPUT_ROOT = "/data2/products/interval_analysis"
@@ -808,8 +809,8 @@ def main() -> None:
         args.end,
         plot_path,
     )
-    np.save(output_dir / "detections.npy", detections)
-    np.save(output_dir / "winds.npy", wind_rows)
+    save_array(output_dir / "detections.h5", detections)
+    save_array(output_dir / "winds.h5", wind_rows)
 
     metrics = {
         "start": args.start.isoformat().replace("+00:00", "Z"),

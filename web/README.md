@@ -28,15 +28,17 @@ and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in
 `systemd/` refreshes the products every five minutes. Static site files are
 deployed from this directory and are not overwritten by the receiver.
 
-The realtime wind service combines the two-second SNR and dense fitted-Doppler
+The realtime wind service combines synchronized 10-second SNR and fitted-Doppler
 RTIs into one two-panel product for the latest 15 minutes over 0–300 km.
-Every time-range cell is fitted independently on each dipole using a centered
-one-second unit-RMS complex-voltage segment. The channel with the strongest
+Five consecutive two-second metadata records are grouped for every output
+column. Every time-range cell is fitted independently on each dipole using the
+full 10 seconds of unit-RMS complex voltage. The channel with the strongest
 sinusoid fit is displayed. Doppler uses a fixed monostatic radial-velocity
 scale of -200 to +200 m/s; noise-only cells are deliberately retained.
 
 `latest_channel_snr_15m_0_300.png` shows channels 1–4 separately over the
-latest 15 minutes. Each channel is referenced to its own interval-mean power
+latest 15 minutes. Each column averages the full same 10-second interval used
+by the Doppler fit. Each channel is referenced to its own interval-mean power
 between 30 and 50 km, while all panels share the same -10 to +20 dB scale.
 
 The old selected-pixel RTI and its realtime processing stage are not used.

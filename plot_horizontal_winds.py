@@ -15,7 +15,7 @@ Directory structure:
 
 Usage:
     Called automatically from wind_estimate_4ch.py after each block,
-    or run standalone to replot from saved detections_2days.npy.
+    or run standalone to replot from saved detections_2days.h5.
 
 Standalone:
     python3 plot_horizontal_winds.py
@@ -28,6 +28,7 @@ import datetime as dt
 import os
 
 import mf_conf as mc
+from hdf5_store import load_array
 
 
 # ============================================================
@@ -35,7 +36,7 @@ import mf_conf as mc
 # ============================================================
 
 PLOT_BASE_DIR  = "horizontal_wind_plots"
-DET_FILE       = "realtime_winds/4ch_snr_mask_detections_2days.npy"
+DET_FILE       = "realtime_winds/4ch_snr_mask_detections_2days.h5"
 
 HEIGHT_RES     = 10.0   # km  — aggregated for overview plots
 HEIGHT_MIN     = 70
@@ -171,7 +172,7 @@ if __name__ == "__main__":
         print(f"No detections file found at {DET_FILE}")
         sys.exit(1)
 
-    det_all = np.load(DET_FILE)
+    det_all = load_array(DET_FILE)
     print(f"Loaded {len(det_all)} detections from {DET_FILE}")
 
     # Group by 10-minute block

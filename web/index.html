@@ -124,14 +124,15 @@
         <p class="plot-method">
           Channels 1–4 are shown independently after transmit-phase correction,
           filtering, decimation, and five-IPP coherent integration. Each panel
-          uses its own interval-mean 30–50 km background, with a common
-          −10…20 dB color scale. The title reports that channel’s absolute
-          background power in arbitrary dB units, making receiver gain and
-          noise changes visible as well as missing echoes.
+          averages all complex-voltage power from the same five consecutive
+          two-second records used by each Doppler fit. Each panel uses its own
+          interval-mean 30–50 km background, with a common −10…20 dB color
+          scale. The title reports that channel’s absolute background power in
+          arbitrary dB units.
         </p>
         <footer>
           <time id="channel_snr-time">Awaiting plot metadata</time>
-          <span>Four channels · 0–300 km · 2-second cadence</span>
+          <span>Four channels · 0–300 km · full 10-second estimates</span>
         </footer>
       </article>
 
@@ -139,18 +140,18 @@
         <header>
           <div>
             <span class="channel-id">SNR + dense Doppler · latest 15 minutes</span>
-            <h3>Synchronized two-second RTIs</h3>
+            <h3>Synchronized 10-second RTIs</h3>
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
         <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
-          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized two-second SNR and fitted-Doppler RTIs from 0 to 300 kilometres">
+          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized 10-second SNR and fitted-Doppler RTIs from 0 to 300 kilometres">
         </button>
         <p class="plot-method">
-          Both panels use the same 15-minute window, two-second cadence, and
+          Both panels use the same 15-minute window, 10-second cadence, and
           0–300 km range grid. The upper panel is power relative to the
           interval-mean 30–50 km background on −10…20 dB. The lower panel fits
-          a one-second unit-RMS complex sinusoid independently on dipoles 1, 3,
+          a 10-second unit-RMS complex sinusoid independently on dipoles 1, 3,
           and 4 for every cell. The strongest fit supplies the monostatic
           velocity using
           v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
@@ -159,7 +160,7 @@
         </p>
         <footer>
           <time id="snr_doppler_dense-time">Awaiting plot metadata</time>
-          <span>Two panels · 0–300 km · 2-second cadence</span>
+          <span>Two panels · 0–300 km · full 10-second estimates</span>
         </footer>
       </article>
 

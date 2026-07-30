@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import h5py
 import os
 from pathlib import Path
 
@@ -20,18 +21,19 @@ import image_help as ih
 import mf_conf as mc
 import plot_monitor_rti as monitor
 import wind_estimates_3ch_2days as winds
-from plot_dense_doppler import dense_doppler, fit_sinusoid_bank
+from plot_dense_doppler import fit_sinusoid_bank, fit_sinusoid_fft
 
 
 WINDOW_S = 15 * 60
+FIT_DURATION_S = 10
+SOURCE_RECORD_S = 2
 DISPLAY_LIMIT_MS = 200.0
 DISPLAY_RANGE_MAX_KM = 300.0
 PLOT_DIR = Path("/data2/plots/monitor")
 COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_15m_0_300.png"
 CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_15m_0_300.png"
 POSITIONS_PLOT = PLOT_DIR / "latest_dense_positions_5m.png"
-DATA_FILE = PLOT_DIR / "latest_doppler_15m.npz"
-SNR_STATE_FILE = PLOT_DIR / "rti_30m_2s_state.npz"
+DATA_FILE = PLOT_DIR / "latest_doppler_15m.h5"
 POSITION_WINDOW_S = 5 * 60
 POSITION_FIT_SNR_MIN = 5.0
 POSITION_COHERENCE_MIN = 0.8
@@ -45,40 +47,83 @@ CHANNEL_HEALTH_FIELDS = (
 )
 
 
+def iter_fit_groups(
+    reader: drf.DigitalMetadataReader,
+    start_unix: float,
+    end_unix: float,
+):
+    """Yield complete, non-overlapping groups spanning ten seconds."""
+    first_start = int(np.ceil(start_unix / FIT_DURATION_S) * FIT_DURATION_S)
+    final_start = int(np.floor(end_unix / FIT_DURATION_S) * FIT_DURATION_S)
+    for group_start in range(first_start, final_start, FIT_DURATION_S):
+        expected_keys = [
+            int((group_start + offset) * 1e6)
+            for offset in range(0, FIT_DURATION_S, SOURCE_RECORD_S)
+        ]
+        metadata = reader.read(
+            expected_keys[0],
+            int((group_start + FIT_DURATION_S) * 1e6) - 1,
+        )
+        if not all(key in metadata for key in expected_keys):
+            continue
+        records = [metadata[key] for key in expected_keys]
+        if not all(
+            field in record
+            for record in records
+            for field in ("rvec", "tvec")
+        ):
+            continue
+        reference_range = np.asarray(records[0]["rvec"], dtype=np.float64)
+        if not all(
+            np.array_equal(
+                reference_range,
+                np.asarray(record["rvec"], dtype=np.float64),
+            )
+            for record in records[1:]
+        ):
+            continue
+        yield group_start + FIT_DURATION_S / 2.0, expected_keys, records
+
+
 def load_channel_power(
     reader: drf.DigitalMetadataReader,
     start_unix: float,
     end_unix: float,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Return two-second power for every receiver channel and range gate."""
+    """Return full-ten-second power for every channel and range gate."""
     records = []
-    start_us = int(start_unix * 1e6)
-    end_us = int(end_unix * 1e6)
-    for chunk_start in np.arange(start_us, end_us, int(60e6)):
-        chunk_end = min(chunk_start + int(60e6), end_us)
-        metadata = reader.read(int(chunk_start), int(chunk_end) - 1)
-        for key in sorted(metadata):
-            record = metadata[key]
-            fields = [field for field, _ in CHANNEL_HEALTH_FIELDS]
-            if not all(field in record for field in (*fields, "rvec")):
-                continue
-            ranges = np.asarray(record["rvec"], dtype=np.float64)
-            mask = (ranges >= 0.0) & (ranges <= DISPLAY_RANGE_MAX_KM)
-            if not np.any(mask):
-                continue
-            power = np.asarray(
-                [
-                    np.mean(
-                        np.abs(np.asarray(record[field])[:, mask]) ** 2,
-                        axis=0,
+    fields = [field for field, _ in CHANNEL_HEALTH_FIELDS]
+    for center_time, _, group in iter_fit_groups(
+        reader,
+        start_unix,
+        end_unix,
+    ):
+        if not all(field in record for record in group for field in fields):
+            continue
+        ranges = np.asarray(group[0]["rvec"], dtype=np.float64)
+        mask = (ranges >= 0.0) & (ranges <= DISPLAY_RANGE_MAX_KM)
+        if not np.any(mask):
+            continue
+        power = np.asarray(
+            [
+                np.mean(
+                    np.abs(
+                        np.concatenate(
+                            [
+                                np.asarray(record[field])[:, mask]
+                                for record in group
+                            ],
+                            axis=0,
+                        )
                     )
-                    for field in fields
-                ],
-                dtype=np.float32,
-            )
-            records.append(
-                (float(key) / 1e6 + 1.0, ranges[mask], power)
-            )
+                    ** 2,
+                    axis=0,
+                )
+                for field in fields
+            ],
+            dtype=np.float32,
+        )
+        records.append((center_time, ranges[mask], power))
 
     if not records:
         raise RuntimeError("no four-channel metadata in requested interval")
@@ -100,6 +145,100 @@ def load_channel_power(
         np.asarray([row[0] for row in records], dtype=np.float64),
         range_km,
         power,
+    )
+
+
+def fit_ten_second_doppler(
+    reader: drf.DigitalMetadataReader,
+    start_unix: float,
+    end_unix: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Fit one sinusoid to every channel/range cell over each full 10 s."""
+    rows = []
+    fields = ("rti1", "rti3", "rti4")
+    for center_time, keys, group in iter_fit_groups(
+        reader,
+        start_unix,
+        end_unix,
+    ):
+        if not all(field in record for record in group for field in fields):
+            continue
+        ranges = np.asarray(group[0]["rvec"], dtype=np.float64)
+        mask = (ranges >= 0.0) & (ranges <= DISPLAY_RANGE_MAX_KM)
+        if not np.any(mask):
+            continue
+        selected_range = ranges[mask]
+        fit_times = np.concatenate(
+            [
+                float(key) / 1e6
+                + np.asarray(record["tvec"], dtype=np.float64)
+                for key, record in zip(keys, group)
+            ]
+        )
+        fit_times -= fit_times[0]
+        channel_voltage = np.asarray(
+            [
+                np.concatenate(
+                    [
+                        np.asarray(record[field])[:, mask]
+                        for record in group
+                    ],
+                    axis=0,
+                )
+                for field in fields
+            ],
+            dtype=np.complex128,
+        )
+        sample_count = channel_voltage.shape[1]
+        gate_count = channel_voltage.shape[2]
+        bank = channel_voltage.transpose(1, 0, 2).reshape(
+            sample_count,
+            len(fields) * gate_count,
+        )
+        frequency, snr = fit_sinusoid_fft(
+            fit_times,
+            bank,
+            winds.MAX_FIT_DOPPLER_HZ,
+        )
+        frequency = frequency.reshape(len(fields), gate_count)
+        snr = snr.reshape(len(fields), gate_count)
+        best_channel = np.argmax(
+            np.where(np.isfinite(snr), snr, -np.inf),
+            axis=0,
+        )
+        gate = np.arange(gate_count)
+        rows.append(
+            (
+                center_time,
+                selected_range,
+                winds.DOPPLER_SIGN
+                * winds.DOPPLER_TO_MS
+                * frequency[best_channel, gate],
+                snr[best_channel, gate],
+            )
+        )
+
+    if not rows:
+        raise RuntimeError("no complete ten-second metadata groups")
+    range_km = max((row[1] for row in rows), key=len)
+    velocity = np.full((len(rows), len(range_km)), np.nan)
+    fit_snr = np.full_like(velocity, np.nan)
+    for row_index, (_, record_range, record_velocity, record_snr) in enumerate(
+        rows
+    ):
+        indices = np.searchsorted(range_km, record_range)
+        if (
+            np.any(indices >= len(range_km))
+            or not np.allclose(range_km[indices], record_range)
+        ):
+            raise ValueError("incompatible range vectors within interval")
+        velocity[row_index, indices] = record_velocity
+        fit_snr[row_index, indices] = record_snr
+    return (
+        np.asarray([row[0] for row in rows], dtype=np.float64),
+        range_km,
+        velocity,
+        fit_snr,
     )
 
 
@@ -193,26 +332,20 @@ def plot_channel_health(
 
 
 def plot_combined_rti(
+    snr_times: np.ndarray,
+    snr_ranges: np.ndarray,
+    channel_power: np.ndarray,
     doppler_times: np.ndarray,
     doppler_ranges: np.ndarray,
     velocity_ms: np.ndarray,
     start: dt.datetime,
     end: dt.datetime,
 ) -> None:
-    """Plot synchronized two-second SNR and fitted-Doppler RTI panels."""
-    with np.load(SNR_STATE_FILE) as state:
-        snr_times = state["times"].astype(np.int64, copy=False)
-        snr_power = state["power"].astype(np.float32, copy=False)
-
-    start_unix = start.timestamp()
-    end_unix = end.timestamp()
-    time_mask = (snr_times >= start_unix) & (snr_times <= end_unix)
-    snr_times = snr_times[time_mask]
-    snr_power = snr_power[time_mask]
+    """Plot synchronized full-ten-second SNR and fitted-Doppler panels."""
     if len(snr_times) < 2:
-        raise RuntimeError("two-second SNR state does not overlap Doppler window")
+        raise RuntimeError("fewer than two ten-second SNR estimates")
 
-    snr_ranges = monitor.range_vector_km(snr_power.shape[1])
+    snr_power = np.nanmean(channel_power[:, (0, 2, 3), :], axis=1)
     noise_mask = (
         (snr_ranges >= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[0])
         & (snr_ranges <= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[1])
@@ -262,7 +395,7 @@ def plot_combined_rti(
         vmax=20.0,
     )
     axes[0].set_title(
-        "Power / 30–50 km interval background · two-second cadence"
+        "Power / 30–50 km interval background · full 10-second estimates"
     )
     snr_colorbar = figure.colorbar(snr_image, ax=axes[0], pad=0.01)
     snr_colorbar.set_label("Power / background (dB)", color="#b7c5d9")
@@ -281,7 +414,7 @@ def plot_combined_rti(
         vmax=DISPLAY_LIMIT_MS,
     )
     axes[1].set_title(
-        "Unfiltered one-second complex-sinusoid fit · every cell"
+        "Unfiltered 10-second complex-sinusoid fit · every cell"
     )
     doppler_colorbar = figure.colorbar(
         doppler_image,
@@ -540,17 +673,20 @@ def main() -> None:
     start = dt.datetime.fromtimestamp(start_unix, tz=dt.timezone.utc)
     end = dt.datetime.fromtimestamp(end_unix, tz=dt.timezone.utc)
 
-    times, ranges, velocity, fit_snr = dense_doppler(
+    times, ranges, velocity, fit_snr = fit_ten_second_doppler(
         reader,
         start_unix,
         end_unix,
-        (0.0, DISPLAY_RANGE_MAX_KM),
     )
     channel_times, channel_ranges, channel_power = load_channel_power(
         reader,
         start_unix,
         end_unix,
     )
+    if not np.array_equal(times, channel_times):
+        raise RuntimeError("SNR and Doppler ten-second timestamps differ")
+    if not np.array_equal(ranges, channel_ranges):
+        raise RuntimeError("SNR and Doppler range vectors differ")
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     plot_channel_health(
         channel_times,
@@ -560,19 +696,36 @@ def main() -> None:
         end,
     )
     plot_combined_rti(
+        channel_times,
+        channel_ranges,
+        channel_power,
         times,
         ranges,
         velocity,
         start,
         end,
     )
-    np.savez_compressed(
-        DATA_FILE,
-        time_unix=times,
-        range_km=ranges,
-        velocity_ms=velocity,
-        sinusoid_snr=fit_snr,
-    )
+    temporary_data = DATA_FILE.with_suffix(DATA_FILE.suffix + ".tmp")
+    with h5py.File(temporary_data, "w") as handle:
+        handle.attrs["fit_duration_seconds"] = FIT_DURATION_S
+        handle.attrs["output_cadence_seconds"] = FIT_DURATION_S
+        handle.create_dataset("time_unix", data=times)
+        handle.create_dataset("range_km", data=ranges)
+        handle.create_dataset(
+            "velocity_ms",
+            data=velocity,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "sinusoid_snr",
+            data=fit_snr,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+    os.replace(temporary_data, DATA_FILE)
     print(f"Four-channel SNR health: {CHANNEL_HEALTH_PLOT}")
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
     print(f"Dense fit cells: {velocity.size}")

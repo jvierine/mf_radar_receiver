@@ -8,6 +8,7 @@ import datetime as dt
 
 import mf_conf as mc
 import image_help_4ch as ih
+from hdf5_store import load_array, save_array
 
 
 
@@ -322,14 +323,14 @@ def main():
 
         # File names are keyed on the window start date
         date_tag  = start_dt.strftime("%Y-%m-%d")
-        det_file  = os.path.join(OUTDIR, f"{date_tag}_detections_2day.npy")
-        wind_file = os.path.join(OUTDIR, f"{date_tag}_winds_2day.npy")
+        det_file  = os.path.join(OUTDIR, f"{date_tag}_detections_2day.h5")
+        wind_file = os.path.join(OUTDIR, f"{date_tag}_winds_2day.h5")
         plot_file = os.path.join(OUTDIR, f"{date_tag}_mf_meteor_winds_2day_4ch.png")
 
         # ── Load any previously saved progress for this window ───────────────
         # This lets you re-run the script without reprocessing completed windows.
-        saved_winds = np.load(wind_file) if os.path.exists(wind_file) else None
-        saved_dets  = np.load(det_file)  if os.path.exists(det_file)  else None
+        saved_winds = load_array(wind_file) if os.path.exists(wind_file) else None
+        saved_dets  = load_array(det_file)  if os.path.exists(det_file)  else None
 
         if saved_winds is not None and saved_winds.size > 0:
             last_center = np.nanmax(saved_winds[:, 0])
@@ -378,8 +379,8 @@ def main():
                 all_winds = np.vstack([all_winds, wind_block])
 
             # Save progress after every block so a crash loses at most one block
-            np.save(det_file,  all_dets)
-            np.save(wind_file, all_winds)
+            save_array(det_file, all_dets)
+            save_array(wind_file, all_winds)
 
             next_block += WIND_DT
 

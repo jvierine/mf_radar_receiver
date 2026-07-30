@@ -21,7 +21,7 @@ Outputs
   detection_scatter.png   — scatter plots: coherence vs Doppler,
                             coherence vs zenith angle, height vs Doppler
   detection_hist.png      — histograms of every property
-  detection_data.npy      — raw detection array for further analysis
+  detection_data.h5       — raw detection array for further analysis
 """
 
 import numpy as np
@@ -34,6 +34,7 @@ import image_help as ih
 import jcoord
 import datetime as dt
 import os
+from hdf5_store import save_array
 
 # ============================================================
 # Configure this block
@@ -297,8 +298,8 @@ def main():
         print("No detections found in this interval — try a different window.")
         return
 
-    np.save("detection_data.npy", det)
-    print("Saved: detection_data.npy")
+    save_array("detection_data.h5", det)
+    print("Saved: detection_data.h5")
 
     # Summary statistics
     print(f"\n--- Coherence ---")

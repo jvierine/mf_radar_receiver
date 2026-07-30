@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import h5py
 import json
 import os
 from pathlib import Path
@@ -46,10 +47,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--raw-dir", default=mc.raw_dir)
     parser.add_argument("--output-dir", default="/data2/plots/monitor")
-    parser.add_argument("--state-file", default="/data2/plots/monitor/rti_48h_state.npz")
+    parser.add_argument("--state-file", default="/data2/plots/monitor/rti_48h_state.h5")
     parser.add_argument(
         "--thirty-minute-state-file",
-        default="/data2/plots/monitor/rti_30m_2s_state.npz",
+        default="/data2/plots/monitor/rti_30m_2s_state.h5",
     )
     parser.add_argument("--hours", type=float, default=48.0)
     parser.add_argument("--cadence", type=int, default=60, help="Seconds per time bin.")
@@ -71,12 +72,21 @@ def atomic_json(path: Path, value: dict) -> None:
 
 def atomic_state(path: Path, times: np.ndarray, power: np.ndarray) -> None:
     temporary = path.with_suffix(path.suffix + ".tmp")
-    with temporary.open("wb") as handle:
-        np.savez_compressed(
-            handle,
-            times=times,
-            power=power,
-            processing_version=np.asarray(PROCESSING_VERSION),
+    with h5py.File(temporary, "w") as handle:
+        handle.attrs["processing_version"] = PROCESSING_VERSION
+        handle.create_dataset(
+            "times",
+            data=times,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "power",
+            data=power,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
         )
     os.replace(temporary, path)
 
@@ -86,14 +96,14 @@ def load_state(path: Path, n_range: int) -> tuple[np.ndarray, np.ndarray]:
         return np.empty(0, dtype=np.int64), np.empty((0, n_range), dtype=np.float32)
 
     try:
-        with np.load(path) as state:
-            version = int(state["processing_version"])
+        with h5py.File(path, "r") as state:
+            version = int(state.attrs["processing_version"])
             if version != PROCESSING_VERSION:
                 raise ValueError(
                     f"processing version {version} is not {PROCESSING_VERSION}"
                 )
-            times = state["times"].astype(np.int64, copy=False)
-            power = state["power"].astype(np.float32, copy=False)
+            times = np.asarray(state["times"], dtype=np.int64)
+            power = np.asarray(state["power"], dtype=np.float32)
         if power.ndim != 2 or power.shape[1] != n_range or len(times) != len(power):
             raise ValueError("state dimensions do not match current RTI settings")
         return times, power
