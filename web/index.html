@@ -151,9 +151,11 @@
           Both panels use the same 15-minute window, 10-second cadence, and
           0–300 km range grid. The upper panel is power relative to the
           interval-mean 30–50 km background on −10…20 dB. The lower panel fits
-          a 10-second unit-RMS complex sinusoid independently on dipoles 1, 3,
-          and 4 for every cell. The strongest fit supplies the monostatic
-          velocity using
+          one common Doppler frequency jointly to all four unit-RMS receiver
+          channels over the full 10 seconds. Each channel has its own fitted
+          complex amplitude; their likelihoods are summed before selecting the
+          common frequency. This includes the three dipoles and the loop without
+          assuming an angle-of-arrival phase. Monostatic velocity uses
           v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
           or wind-continuity gate is applied, so noise-only cells also return
           bounded fits. Color is fixed at −200…+200 m/s.

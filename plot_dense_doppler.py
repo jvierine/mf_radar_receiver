@@ -180,6 +180,82 @@ def fit_sinusoid_fft(
     return frequency, snr
 
 
+def fit_common_sinusoid_fft(
+    times: np.ndarray,
+    voltage: np.ndarray,
+    maximum_frequency_hz: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Jointly fit one frequency with an independent amplitude per channel.
+
+    ``voltage`` has shape (time, channel, series). Each channel/series is
+    normalized to unit RMS, then the four periodogram likelihoods are summed
+    before selecting a common frequency for each series.
+    """
+    times = np.asarray(times, dtype=np.float64)
+    voltage = np.asarray(voltage, dtype=np.complex128)
+    if voltage.ndim != 3 or voltage.shape[0] != len(times):
+        raise ValueError("voltage must have shape (time, channel, series)")
+    if len(times) < 2:
+        raise ValueError("at least two voltage samples are required")
+
+    sample_interval = float(np.median(np.diff(times)))
+    scale = np.sqrt(np.mean(np.abs(voltage) ** 2, axis=0))
+    valid_channel = np.isfinite(scale) & (scale > 0)
+    valid = np.all(valid_channel, axis=0)
+    normalized = np.zeros_like(voltage)
+    normalized[:, valid_channel] = (
+        voltage[:, valid_channel] / scale[valid_channel]
+    )
+
+    nfft = max(2048, 2 ** int(np.ceil(np.log2(len(times) * 8))))
+    frequency_grid = np.fft.fftshift(
+        np.fft.fftfreq(nfft, d=sample_interval)
+    )
+    spectrum = np.fft.fftshift(
+        np.fft.fft(normalized, n=nfft, axis=0),
+        axes=0,
+    )
+    allowed = np.flatnonzero(
+        np.abs(frequency_grid) <= maximum_frequency_hz
+    )
+    joint_power = np.sum(np.abs(spectrum[allowed]) ** 2, axis=1)
+    peak = np.argmax(joint_power, axis=0)
+    frequency = frequency_grid[allowed[peak]].copy()
+    step = frequency_grid[1] - frequency_grid[0]
+
+    interior = valid & (peak > 0) & (peak < len(allowed) - 1)
+    series = np.flatnonzero(interior)
+    if len(series):
+        center = joint_power[peak[series], series]
+        lower = joint_power[peak[series] - 1, series]
+        upper = joint_power[peak[series] + 1, series]
+        denominator = lower - 2.0 * center + upper
+        offset = np.zeros(len(series), dtype=np.float64)
+        curved = np.abs(denominator) > 1e-30
+        offset[curved] = 0.5 * (
+            lower[curved] - upper[curved]
+        ) / denominator[curved]
+        frequency[series] += np.clip(offset, -1.0, 1.0) * step
+
+    fit_times = times - times[0]
+    model = np.exp(2j * np.pi * fit_times[:, None] * frequency[None, :])
+    amplitude = np.mean(
+        np.conj(model)[:, None, :] * normalized,
+        axis=0,
+    )
+    residual = normalized - model[:, None, :] * amplitude[None, :, :]
+    signal_power = np.sum(np.abs(amplitude) ** 2, axis=0)
+    residual_power = np.maximum(
+        np.sum(np.mean(np.abs(residual) ** 2, axis=0), axis=0),
+        1e-30,
+    )
+    snr = signal_power / residual_power
+    frequency[~valid] = np.nan
+    snr[~valid] = np.nan
+    return frequency, snr
+
+
 def dense_doppler(
     reader: drf.DigitalMetadataReader,
     start_unix: float,

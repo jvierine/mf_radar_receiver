@@ -21,7 +21,7 @@ import image_help as ih
 import mf_conf as mc
 import plot_monitor_rti as monitor
 import wind_estimates_3ch_2days as winds
-from plot_dense_doppler import fit_sinusoid_bank, fit_sinusoid_fft
+from plot_dense_doppler import fit_common_sinusoid_fft, fit_sinusoid_bank
 
 
 WINDOW_S = 15 * 60
@@ -155,7 +155,7 @@ def fit_ten_second_doppler(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Fit one sinusoid to every channel/range cell over each full 10 s."""
     rows = []
-    fields = ("rti1", "rti3", "rti4")
+    fields = ("rti1", "rti2", "rti3", "rti4")
     for center_time, keys, group in iter_fit_groups(
         reader,
         start_unix,
@@ -189,32 +189,19 @@ def fit_ten_second_doppler(
             ],
             dtype=np.complex128,
         )
-        sample_count = channel_voltage.shape[1]
-        gate_count = channel_voltage.shape[2]
-        bank = channel_voltage.transpose(1, 0, 2).reshape(
-            sample_count,
-            len(fields) * gate_count,
-        )
-        frequency, snr = fit_sinusoid_fft(
+        frequency, snr = fit_common_sinusoid_fft(
             fit_times,
-            bank,
+            channel_voltage.transpose(1, 0, 2),
             winds.MAX_FIT_DOPPLER_HZ,
         )
-        frequency = frequency.reshape(len(fields), gate_count)
-        snr = snr.reshape(len(fields), gate_count)
-        best_channel = np.argmax(
-            np.where(np.isfinite(snr), snr, -np.inf),
-            axis=0,
-        )
-        gate = np.arange(gate_count)
         rows.append(
             (
                 center_time,
                 selected_range,
                 winds.DOPPLER_SIGN
                 * winds.DOPPLER_TO_MS
-                * frequency[best_channel, gate],
-                snr[best_channel, gate],
+                * frequency,
+                snr,
             )
         )
 
@@ -414,7 +401,7 @@ def plot_combined_rti(
         vmax=DISPLAY_LIMIT_MS,
     )
     axes[1].set_title(
-        "Unfiltered 10-second complex-sinusoid fit · every cell"
+        "Joint four-channel 10-second complex-sinusoid fit · every cell"
     )
     doppler_colorbar = figure.colorbar(
         doppler_image,
@@ -709,6 +696,10 @@ def main() -> None:
     with h5py.File(temporary_data, "w") as handle:
         handle.attrs["fit_duration_seconds"] = FIT_DURATION_S
         handle.attrs["output_cadence_seconds"] = FIT_DURATION_S
+        handle.attrs["doppler_combination"] = (
+            "joint_common_frequency_independent_complex_amplitudes"
+        )
+        handle.attrs["doppler_channels"] = "ch1,ch2,ch3,ch4"
         handle.create_dataset("time_unix", data=times)
         handle.create_dataset("range_km", data=ranges)
         handle.create_dataset(
