@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import fcntl
 import h5py
 import os
 from pathlib import Path
@@ -363,7 +364,7 @@ def plot_quality(state: dict[str, np.ndarray], output_path: Path) -> None:
     os.replace(temporary, output_path)
 
 
-def update_history(
+def _update_history_unlocked(
     reader,
     end_unix: float,
     state_path: Path = DEFAULT_STATE,
@@ -416,6 +417,27 @@ def update_history(
         f"remaining {np.count_nonzero(~np.any(np.isfinite(state['baseline_peak_correlation']), axis=(1, 2)))}"
     )
     return state
+
+
+def update_history(
+    reader,
+    end_unix: float,
+    state_path: Path = DEFAULT_STATE,
+    output_dir: Path = DEFAULT_OUTPUT_DIR,
+    max_windows: int = 4,
+) -> dict[str, np.ndarray]:
+    """Serialize realtime and bulk updates to the rolling history state."""
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = state_path.with_suffix(state_path.suffix + ".lock")
+    with lock_path.open("a", encoding="ascii") as lock_handle:
+        fcntl.flock(lock_handle, fcntl.LOCK_EX)
+        return _update_history_unlocked(
+            reader,
+            end_unix,
+            state_path,
+            output_dir,
+            max_windows,
+        )
 
 
 def main() -> None:
