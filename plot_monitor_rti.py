@@ -248,6 +248,45 @@ def process_doppler_bin(
     return selected_range, velocity_ms.astype(np.float32)
 
 
+def align_doppler_ranges(
+    target_range_km: np.ndarray,
+    source_range_km: np.ndarray,
+    source_velocity_ms: np.ndarray,
+) -> np.ndarray:
+    """Map a historical Doppler vector to the current nearest range gates."""
+    target_range_km = np.asarray(target_range_km, dtype=np.float64)
+    source_range_km = np.asarray(source_range_km, dtype=np.float64)
+    source_velocity_ms = np.asarray(source_velocity_ms, dtype=np.float32)
+    result = np.full(len(target_range_km), np.nan, dtype=np.float32)
+    if len(source_range_km) == 0:
+        return result
+    right = np.searchsorted(source_range_km, target_range_km)
+    right = np.clip(right, 0, len(source_range_km) - 1)
+    left = np.maximum(right - 1, 0)
+    choose_right = (
+        np.abs(source_range_km[right] - target_range_km)
+        < np.abs(source_range_km[left] - target_range_km)
+    )
+    nearest = np.where(choose_right, right, left)
+    source_step = (
+        float(np.median(np.diff(source_range_km)))
+        if len(source_range_km) > 1
+        else np.inf
+    )
+    target_step = (
+        float(np.median(np.diff(target_range_km)))
+        if len(target_range_km) > 1
+        else np.inf
+    )
+    tolerance_km = 0.51 * min(source_step, target_step)
+    matched = (
+        np.abs(source_range_km[nearest] - target_range_km)
+        <= tolerance_km
+    )
+    result[matched] = source_velocity_ms[nearest[matched]]
+    return result
+
+
 def process_time_bin(
     reader: drf.DigitalRFReader,
     unix_time: int,
@@ -638,6 +677,26 @@ def main() -> None:
     doppler_times, doppler_range_km, velocity_ms = load_doppler_state(
         doppler_state_path
     )
+    if len(doppler_range_km) == 0:
+        for probe_start in range(
+            doppler_last_start,
+            max(
+                doppler_window_start,
+                doppler_last_start - 10 * DOPPLER_CADENCE_S,
+            )
+            - 1,
+            -DOPPLER_CADENCE_S,
+        ):
+            try:
+                doppler_range_km, _ = process_doppler_bin(
+                    doppler_reader,
+                    probe_start,
+                )
+                break
+            except Exception:
+                continue
+        if len(doppler_range_km) == 0:
+            raise RuntimeError("No current Doppler range vector is available")
     doppler_keep = (
         (doppler_times >= doppler_window_start)
         & (
@@ -672,14 +731,16 @@ def main() -> None:
         except Exception as error:
             print(f"Skipping Doppler bin {group_start}: {error}")
             continue
-        if len(doppler_range_km) == 0:
-            doppler_range_km = record_range
-        elif not np.array_equal(doppler_range_km, record_range):
-            raise RuntimeError("Doppler range vector changed")
         new_doppler_times.append(
             group_start + DOPPLER_FIT_DURATION_S // 2
         )
-        new_velocity.append(record_velocity)
+        new_velocity.append(
+            align_doppler_ranges(
+                doppler_range_km,
+                record_range,
+                record_velocity,
+            )
+        )
         if index % 100 == 0:
             elapsed = time.monotonic() - started
             print(
