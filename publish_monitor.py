@@ -100,7 +100,7 @@ def process_rows() -> list[dict]:
     result.append(
         {
             "name": "wind_timer",
-            "label": "Automatic wind processor timer",
+            "label": "Realtime Doppler–AoA processor timer",
             "alive": wind_timer_active,
             "pid": None,
         }

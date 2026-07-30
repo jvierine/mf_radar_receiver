@@ -33,6 +33,24 @@ python calibrate_interferometer.py --hours 24
 python calibrate_interferometer.py --hours 24 --install
 ```
 
+## Joint Doppler and angle-of-arrival fit
+
+`aoa_doppler.py` searches each complete ten-second block jointly over Doppler
+and a regular east/north direction-cosine grid using only the calibrated
+dipoles on channels 1, 3, and 4. At each range from 50 to 250 km, `jcoord`
+converts every trial direction to WGS84 geodetic altitude. Only directions at
+50–150 km altitude and at least 20 degrees elevation are searched.
+
+The largest coherent three-dipole matched-filter value supplies the displayed
+signal power and radial velocity. Distinct local direction-grid maxima within
+6 dB of the best solution are retained rather than unwrapped. Doppler maxima
+are tested in descending incoherent power. That power is an upper bound on
+every coherent beam, so the search stops only when no remaining Doppler can
+fall within the retained 6 dB interval. The realtime HDF5 product stores up to
+twelve ambiguities per time-range cell, including direction cosines, WGS84
+position and altitude, Doppler, radial velocity, coherent power, relative
+power, and phase match.
+
 ## Storage layout
 
 - `/data1`: raw-voltage Digital RF ring buffer, capped at 10 TB (about 50% of

@@ -151,24 +151,27 @@
       <article class="plot-card selected-rti-card" data-plot="snr_doppler_dense">
         <header>
           <div>
-            <span class="channel-id">SNR + dense Doppler · latest 15 minutes</span>
+            <span class="channel-id">Coherent power + Doppler · latest 15 minutes</span>
             <h3>Synchronized 10-second RTIs</h3>
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
-          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized 10-second SNR and fitted-Doppler RTIs from 0 to 300 kilometres">
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized coherent-power and fitted-Doppler RTIs">
+          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized 10-second coherent-power and fitted-Doppler RTIs from 0 to 300 kilometres">
         </button>
         <p class="plot-method">
           Both panels use the same 15-minute window, 10-second cadence, and
-          0–300 km range grid. The upper panel is the sum over the three dipoles
-          of fitted narrowband sinusoid power divided by processed broadband
-          noise power, shown on −20…20 dB. Broadband noise is mean
+          0–300 km display grid. The matched filter searches 50–250 km range.
+          The upper panel is the strongest joint Doppler–AoA coherent power
+          from the three dipoles divided by processed broadband noise power,
+          shown on −20…20 dB. Broadband noise is mean
           30–50 km power after transmit-phase correction, 20 kHz filtering,
           10× decimation, and coherent integration of five 10 ms IPPs.
-          The lower panel uses the same joint common-frequency dipole fit. Each dipole
-          has its own complex amplitude; their likelihoods are summed before
-          selecting frequency. Monostatic velocity uses
+          AoA is searched on a WGS84 direction-cosine grid constrained to
+          50–150 km altitude and at least 20° elevation. Up to twelve local
+          AoA maxima within 6 dB of the best are retained in HDF5; the
+          strongest joint maximum supplies the plotted power and Doppler.
+          Monostatic velocity uses
           v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
           or wind-continuity gate is applied, so noise-only cells also return
           bounded fits. The loop is excluded because its lower SNR and stronger
@@ -229,8 +232,8 @@
         One profile is retained per minute over a rolling 48-hour window.
         This is an operational quick-look. It uses coherent pulse integration,
         but not phase calibration between antennas, beamforming, or Doppler
-        selection. The wind-selection product below performs those additional
-        interferometric and Doppler steps.
+        selection. The synchronized ten-second product above performs those
+        additional interferometric and Doppler steps.
       </p>
     </section>
 
