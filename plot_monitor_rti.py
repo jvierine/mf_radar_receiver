@@ -128,7 +128,11 @@ def process_time_bin(
     block_samples = averages * IPP_SAMPLES
     voltage_blocks = {
         channel: (
-            reader.read_vector_c81d(first_sample, block_samples, channel)
+            reader.read_vector_1d(first_sample, block_samples, channel).astype(
+                np.complex64,
+                casting="unsafe",
+                copy=False,
+            )
             - mc.dc_offset
         ).reshape(averages, IPP_SAMPLES)
         for channel in channels
@@ -137,11 +141,11 @@ def process_time_bin(
         voltage_blocks[TX_REFERENCE_CHANNEL]
         if TX_REFERENCE_CHANNEL in voltage_blocks
         else (
-            reader.read_vector_c81d(
+            reader.read_vector_1d(
                 first_sample,
                 block_samples,
                 TX_REFERENCE_CHANNEL,
-            )
+            ).astype(np.complex64, casting="unsafe", copy=False)
             - mc.dc_offset
         ).reshape(averages, IPP_SAMPLES)
     )
