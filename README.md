@@ -2,6 +2,37 @@
 
 Collab between NIPR, UiT, and TGO
 
+## Interferometer phase calibration
+
+`calibrate_interferometer.py` estimates the fixed relative receiver-channel
+phases without using the direct transmit path. It processes exact,
+non-overlapping ten-second groups using the same joint common-frequency
+three-dipole complex-sinusoid fit as the realtime Doppler product. Candidate vertical
+echoes must be between 70 and 150 km round-trip range, have fitted Doppler
+within ±0.25 Hz, pass 10 dB fitted-sinusoid SNR on all three dipoles, and have
+at least 0.80 mean dipole coherence across the five constituent two-second
+records.
+
+For each accepted echo, the complex fitted amplitudes provide the channel
+phases relative to channel 1. A coherence-weighted circular mean gives the
+three-dipole correction. The loop phase is recorded as a diagnostic but is
+not calibrated by this method because its phase is not stable over multi-hour
+vertical-echo ensembles. For backward compatibility, installation retains
+the previous loop entry and marks channel 2 false in
+`calibrated_channel_mask`. The HDF5 output contains the correction,
+circular concentration and uncertainty, half-hour estimates, sample counts,
+selection thresholds, interval, and method. Installation is refused unless
+the candidate passes minimum sample-count, circular-concentration, and
+block-stability checks. The previous active HDF5 calibration is archived
+before an accepted candidate is installed.
+
+Example:
+
+```sh
+python calibrate_interferometer.py --hours 24
+python calibrate_interferometer.py --hours 24 --install
+```
+
 ## Storage layout
 
 - `/data1`: raw-voltage Digital RF ring buffer, capped at 10 TB (about 50% of

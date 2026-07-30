@@ -46,6 +46,8 @@ CHANNEL_HEALTH_FIELDS = (
     ("rti3", "Channel 3 · MF1 dipole"),
     ("rti4", "Channel 4 · MF2 dipole"),
 )
+DOPPLER_FIELDS = ("rti1", "rti3", "rti4")
+DOPPLER_CHANNEL_INDICES = np.asarray((0, 2, 3))
 
 
 def iter_fit_groups(
@@ -156,7 +158,7 @@ def fit_ten_second_doppler(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Fit one sinusoid to every channel/range cell over each full 10 s."""
     rows = []
-    fields = ("rti1", "rti2", "rti3", "rti4")
+    fields = DOPPLER_FIELDS
     for center_time, keys, group in iter_fit_groups(
         reader,
         start_unix,
@@ -213,7 +215,7 @@ def fit_ten_second_doppler(
     velocity = np.full((len(rows), len(range_km)), np.nan)
     fit_snr = np.full_like(velocity, np.nan)
     fitted_power = np.full(
-        (len(rows), len(CHANNEL_HEALTH_FIELDS), len(range_km)),
+        (len(rows), len(DOPPLER_FIELDS), len(range_km)),
         np.nan,
     )
     for row_index, (
@@ -357,11 +359,12 @@ def plot_combined_rti(
         np.nanmean(channel_power[:, :, noise_mask], axis=(0, 2)),
         1e-20,
     )
+    doppler_noise_power = broadband_noise_power[DOPPLER_CHANNEL_INDICES]
     narrowband_ratio_db = 10.0 * np.log10(
         np.maximum(
             np.sum(
                 fitted_channel_power[:, :, display_mask]
-                / broadband_noise_power[None, :, None],
+                / doppler_noise_power[None, :, None],
                 axis=1,
             ),
             1e-20,
@@ -420,7 +423,7 @@ def plot_combined_rti(
         vmax=DISPLAY_LIMIT_MS,
     )
     axes[1].set_title(
-        "Joint four-channel 10-second complex-sinusoid fit · every cell"
+        "Joint three-dipole 10-second complex-sinusoid fit · every cell"
     )
     doppler_colorbar = figure.colorbar(
         doppler_image,
@@ -721,7 +724,10 @@ def main() -> None:
         handle.attrs["doppler_combination"] = (
             "joint_common_frequency_independent_complex_amplitudes"
         )
-        handle.attrs["doppler_channels"] = "ch1,ch2,ch3,ch4"
+        handle.attrs["doppler_channels"] = "ch1,ch3,ch4"
+        handle.attrs["excluded_doppler_channels"] = (
+            "ch2 loop: lower SNR and stronger RFI"
+        )
         handle.attrs["narrowband_power"] = (
             "squared_complex_amplitude_of_joint_common_frequency_fit"
         )
@@ -759,16 +765,17 @@ def main() -> None:
             channel_power[:, :, noise_mask],
             axis=(0, 2),
         )
+        doppler_noise_power = broadband_noise_power[DOPPLER_CHANNEL_INDICES]
         handle.create_dataset(
             "processed_broadband_noise_power_by_channel",
-            data=broadband_noise_power,
+            data=doppler_noise_power,
         )
         handle.create_dataset(
             "narrowband_to_broadband_noise_ratio",
             data=np.sum(
                 fitted_channel_power
                 / np.maximum(
-                    broadband_noise_power[None, :, None],
+                    doppler_noise_power[None, :, None],
                     1e-20,
                 ),
                 axis=1,
