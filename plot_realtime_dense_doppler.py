@@ -396,7 +396,6 @@ def main() -> None:
         start,
         end,
     )
-    position_count = plot_recent_positions(reader, end_unix)
     np.savez_compressed(
         DATA_FILE,
         time_unix=times,
@@ -405,7 +404,6 @@ def main() -> None:
         sinusoid_snr=fit_snr,
     )
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
-    print(f"Five-minute positions: {POSITIONS_PLOT} ({position_count} echoes)")
     print(f"Dense fit cells: {velocity.size}")
 
 

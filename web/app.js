@@ -13,12 +13,6 @@ const plots = [
     file: "latest_rti_48h_mesosphere.png",
   },
   {
-    id: "altitude_cuts",
-    title: "Interferometric echo positions",
-    label: "Synchronized analysis · latest 5 min",
-    file: "latest_dense_positions_5m.png",
-  },
-  {
     id: "snr_doppler_dense",
     title: "SNR and dense fitted Doppler",
     label: "Two-second cadence · latest 30 min · 0–200 km",

@@ -35,9 +35,4 @@ one-second unit-RMS complex-voltage segment. The channel with the strongest
 sinusoid fit is displayed. Doppler uses a fixed monostatic radial-velocity
 scale of -200 to +200 m/s; noise-only cells are deliberately retained.
 
-The position panel images the latest five minutes directly from the dense
-two-second field and normalized one-second Doppler fits. Three-channel complex
-voltage supplies interferometric phase. Positioning additionally requires
-coherence, phase closure, a valid interferometric AoA, 20-degree minimum
-elevation, and 70–150 km geometric altitude. The old selected-pixel RTI and
-its realtime processing stage are not used.
+The old selected-pixel RTI and its realtime processing stage are not used.

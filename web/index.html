@@ -110,32 +110,6 @@
         </footer>
       </article>
 
-      <article class="plot-card selected-rti-card" data-plot="altitude_cuts">
-        <header>
-          <div>
-            <span class="channel-id">Interferometric imaging · latest 5 minutes</span>
-            <h3>Positions from synchronized analysis</h3>
-          </div>
-          <span class="freshness" id="altitude_cuts-freshness">—</span>
-        </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open latest five-minute interferometric echo positions">
-          <img id="altitude_cuts-image" src="latest_dense_positions_5m.png" alt="Interferometric echo positions from the latest five minutes, colored by monostatic Doppler velocity">
-        </button>
-        <p class="plot-method">
-          Positions come directly from the dense two-second field and its
-          normalized one-second Doppler fits, without the old selected-pixel
-          funnel. Three-channel complex voltage provides interferometric
-          phase; coherence, phase closure, 20° minimum elevation, and 70–150 km
-          geometric altitude retain physically imageable solutions.
-          East–west position is horizontal, north–south is vertical, and color
-          is monostatic Doppler velocity.
-        </p>
-        <footer>
-          <time id="altitude_cuts-time">Awaiting plot metadata</time>
-          <span>±200 km field · 5-minute window</span>
-        </footer>
-      </article>
-
       <article class="plot-card selected-rti-card" data-plot="snr_doppler_dense">
         <header>
           <div>
@@ -144,7 +118,7 @@
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
+        <button class="plot-button rti-button" type="button" data-plot-index="2" aria-label="Open synchronized SNR and fitted-Doppler RTIs">
           <img id="snr_doppler_dense-image" src="latest_snr_doppler_30m_0_200.png" alt="Synchronized two-second SNR and fitted-Doppler RTIs from 0 to 200 kilometres">
         </button>
         <p class="plot-method">
