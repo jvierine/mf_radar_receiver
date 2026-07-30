@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate dense fitted-Doppler RTIs for the latest 30 minutes."""
+"""Generate dense fitted-Doppler RTIs for the latest 15 minutes."""
 
 from __future__ import annotations
 
@@ -23,14 +23,14 @@ import wind_estimates_3ch_2days as winds
 from plot_dense_doppler import dense_doppler, fit_sinusoid_bank
 
 
-WINDOW_S = 30 * 60
+WINDOW_S = 15 * 60
 DISPLAY_LIMIT_MS = 200.0
 DISPLAY_RANGE_MAX_KM = 300.0
 PLOT_DIR = Path("/data2/plots/monitor")
-COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_30m_0_300.png"
-CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_30m_0_300.png"
+COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_15m_0_300.png"
+CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_15m_0_300.png"
 POSITIONS_PLOT = PLOT_DIR / "latest_dense_positions_5m.png"
-DATA_FILE = PLOT_DIR / "latest_doppler_30m.npz"
+DATA_FILE = PLOT_DIR / "latest_doppler_15m.npz"
 SNR_STATE_FILE = PLOT_DIR / "rti_30m_2s_state.npz"
 POSITION_WINDOW_S = 5 * 60
 POSITION_FIT_SNR_MIN = 5.0
@@ -177,7 +177,7 @@ def plot_channel_health(
     )
     colorbar.ax.tick_params(colors="#8fa1ba")
     figure.suptitle(
-        "Ramfjordmoen MF radar · receiver-channel health · latest 30 minutes",
+        "Ramfjordmoen MF radar · receiver-channel health · latest 15 minutes",
         color="#edf4ff",
         fontsize=18,
         weight="semibold",
@@ -304,7 +304,7 @@ def plot_combined_rti(
         mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
     )
     figure.suptitle(
-        "Ramfjordmoen MF radar · latest 30 minutes · "
+        "Ramfjordmoen MF radar · latest 15 minutes · "
         "SNR and fitted Doppler",
         color="#edf4ff",
         fontsize=18,
