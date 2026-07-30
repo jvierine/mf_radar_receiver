@@ -17,11 +17,12 @@ color scale is fixed at -3 to 20 dB.
 
 The upper panel of the latest-15-minute combined product uses one scalar noise
 power: the arithmetic mean power over the entire interval and all 30–50 km
-range bins. It is sampled every two seconds, matching the dense Doppler panel.
-Its 5 IPPs, 10 range samples, and 3 receiver channels provide 150 incoherent
-power looks. The nominal noise-fluctuation suppression is
-`5 log10(150) = 10.9 dB`, so the fixed display scale is -10 to 20 dB. This is
-detection gain from reduced variance, not an increase in mean physical SNR.
+range bins. Each displayed column uses five consecutive two-second metadata
+records, exactly matching the Doppler interval. Each channel contributes 200
+power samples after five-IPP coherent integration, and three dipole channels
+provide 600 nominal power looks per time/range cell. The fixed display scale
+is -10 to 20 dB. This averaging reduces noise fluctuations; it does not
+increase the mean physical SNR.
 
 `publish_monitor.py` collects receiver telemetry and publishes the two plots
 and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in
