@@ -27,7 +27,7 @@ from plot_dense_doppler import fit_common_sinusoid_fft, fit_sinusoid_bank
 WINDOW_S = 15 * 60
 FIT_DURATION_S = 10
 SOURCE_RECORD_S = 2
-DISPLAY_LIMIT_MS = 200.0
+DISPLAY_LIMIT_MS = 100.0
 DISPLAY_RANGE_MAX_KM = 300.0
 NARROWBAND_RATIO_MIN_DB = -20.0
 PLOT_DIR = Path("/data2/plots/monitor")
