@@ -25,8 +25,9 @@ from plot_dense_doppler import dense_doppler, fit_sinusoid_bank
 
 WINDOW_S = 30 * 60
 DISPLAY_LIMIT_MS = 200.0
+DISPLAY_RANGE_MAX_KM = 300.0
 PLOT_DIR = Path("/data2/plots/monitor")
-COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_30m_0_200.png"
+COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_30m_0_300.png"
 POSITIONS_PLOT = PLOT_DIR / "latest_dense_positions_5m.png"
 DATA_FILE = PLOT_DIR / "latest_doppler_30m.npz"
 SNR_STATE_FILE = PLOT_DIR / "rti_30m_2s_state.npz"
@@ -62,7 +63,10 @@ def plot_combined_rti(
         (snr_ranges >= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[0])
         & (snr_ranges <= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[1])
     )
-    display_mask = (snr_ranges >= 0.0) & (snr_ranges <= 200.0)
+    display_mask = (
+        (snr_ranges >= 0.0)
+        & (snr_ranges <= DISPLAY_RANGE_MAX_KM)
+    )
     background_power = max(
         float(np.nanmean(snr_power[:, noise_mask])),
         1e-20,
@@ -138,7 +142,7 @@ def plot_combined_rti(
 
     for axis in axes:
         axis.set_xlim(start, end)
-        axis.set_ylim(0.0, 200.0)
+        axis.set_ylim(0.0, DISPLAY_RANGE_MAX_KM)
         axis.set_ylabel("Round-trip range (km)")
     axes[1].set_xlabel("Time (UTC)", color="#b7c5d9")
     axes[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
@@ -386,7 +390,7 @@ def main() -> None:
         reader,
         start_unix,
         end_unix,
-        (0.0, 200.0),
+        (0.0, DISPLAY_RANGE_MAX_KM),
     )
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     plot_combined_rti(

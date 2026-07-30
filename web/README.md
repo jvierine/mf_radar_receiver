@@ -29,7 +29,7 @@ and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in
 deployed from this directory and are not overwritten by the receiver.
 
 The realtime wind service combines the two-second SNR and dense fitted-Doppler
-RTIs into one two-panel product for the latest 30 minutes over 0–200 km.
+RTIs into one two-panel product for the latest 30 minutes over 0–300 km.
 Every time-range cell is fitted independently on each dipole using a centered
 one-second unit-RMS complex-voltage segment. The channel with the strongest
 sinusoid fit is displayed. Doppler uses a fixed monostatic radial-velocity

@@ -21,7 +21,7 @@ NUM_TAPS  = 50         # FIR filter length
 
 # Range limits
 RANGE_MIN_KM = 0.0
-RANGE_MAX_KM = 200.0
+RANGE_MAX_KM = 300.0
 
 
 def range_vector():
@@ -78,7 +78,7 @@ def rti(d,
     S_ci = S_full[:n_ci_ipp * N_CI].reshape(n_ci_ipp, N_CI, IPP // DEC)
     S_ci = S_ci.sum(axis=1)          # (n_ci_ipp, n_range_full)
 
-    # Keep only 50–200 km range gates
+    # Keep only the configured round-trip range gates.
     RTI = S_ci[:, rmask].astype(np.complex64)   # (n_ci_ipp, n_range)
 
     
