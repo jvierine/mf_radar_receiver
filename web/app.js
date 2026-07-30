@@ -8,8 +8,8 @@ const plots = [
   },
   {
     id: "rti_mesosphere",
-    title: "Partial reflections & meteor echoes",
-    label: "Mesosphere · 0–200 km",
+    title: "Mesospheric power and fitted Doppler",
+    label: "Two panels · latest 48 h · 0–200 km",
     file: "latest_rti_48h_mesosphere.png",
   },
   {
@@ -20,9 +20,15 @@ const plots = [
   },
   {
     id: "snr_doppler_dense",
-    title: "Ungated fitted power and Doppler",
-    label: "Full 10-second fits · latest 15 min · 0–300 km",
+    title: "Realtime power, Doppler, and fading winds",
+    label: "RTIs + zonal/meridional winds · latest 15 min",
     file: "latest_snr_doppler_15m_0_300.png",
+  },
+  {
+    id: "fading_correlation",
+    title: "Fading-correlation baseline diagnostics",
+    label: "All peak delays + correlations · latest 15 min",
+    file: "latest_fading_correlation_diagnostics_15m.png",
   },
 ];
 

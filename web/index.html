@@ -103,22 +103,27 @@
         <header>
           <div>
             <span class="channel-id">Mesosphere</span>
-            <h3>Partial reflections &amp; meteor echoes</h3>
+            <h3>Power and fitted Doppler</h3>
           </div>
           <span class="freshness" id="rti_mesosphere-freshness">—</span>
         </header>
         <button class="plot-button rti-button" type="button" data-plot-index="1" aria-label="Open mesospheric 48-hour RTI">
-          <img id="rti_mesosphere-image" src="latest_rti_48h_mesosphere.png" alt="Latest 48-hour range-time intensity from 0 to 200 kilometres">
+          <img id="rti_mesosphere-image" src="latest_rti_48h_mesosphere.png" alt="Latest 48-hour noise-referenced power and Doppler velocity from 0 to 200 kilometres">
         </button>
         <p class="plot-method">
-          The same processing is used at approximately 1.5 km round-trip range
-          spacing, with power/background clipped to −3…20 dB. This quick-look
-          does not yet classify echoes: ionospheric propagation can appear inside
-          the 0–200 km display alongside mesospheric partial reflections and meteors.
+          The upper panel uses the same power processing at approximately
+          1.5 km round-trip range spacing, clipped to −3…20 dB. The lower panel
+          shows one ungated 10-second Doppler fit per minute. Dipoles 1, 3, and
+          4 share one fitted frequency while retaining independent complex
+          amplitudes; monostatic velocity uses
+          v<sub>r</sub> = −λf<sub>D</sub>/2 and is shown on −150…+150 m/s.
+          No SNR, coherence, altitude, or echo-classification gate is applied.
+          Ionospheric propagation can therefore appear alongside mesospheric
+          partial reflections and meteors.
         </p>
         <footer>
           <time id="rti_mesosphere-time">Awaiting plot metadata</time>
-          <span>0–200 km</span>
+          <span>Power + Doppler · 0–200 km</span>
         </footer>
       </article>
 
@@ -151,13 +156,13 @@
       <article class="plot-card selected-rti-card" data-plot="snr_doppler_dense">
         <header>
           <div>
-            <span class="channel-id">Fitted power + Doppler · latest 15 minutes</span>
-            <h3>Synchronized 10-second RTIs</h3>
+            <span class="channel-id">Power, Doppler + winds · latest 15 minutes</span>
+            <h3>Realtime signal and fading-wind analysis</h3>
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
         <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized fitted-power and Doppler RTIs">
-          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized ungated 10-second fitted-power and Doppler RTIs from 0 to 300 kilometres">
+          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Realtime fitted-power and Doppler RTIs plus zonal and meridional fading-wind estimates">
         </button>
         <p class="plot-method">
           Both panels use the same 15-minute window, 10-second cadence, and
@@ -172,11 +177,48 @@
           uses v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA,
           altitude, zenith-angle, or velocity gate is applied. The loop is
           excluded because its lower SNR and stronger RFI can degrade the fit.
-          Color is fixed at −150…+150 m/s.
+          The bottom panels estimate zonal and meridional neutral winds at
+          70–120 km altitude from five-minute, three-dipole power-fading
+          correlations. An evolving elliptical diffraction pattern is fitted
+          automatically; its ground speed is divided by two. In the
+          near-vertical thin-layer Fresnel approximation, the two-way path
+          depends on scatterer and receiver coordinates as
+          <code>(X−x/2)²/h</code>, so a scatterer displacement produces twice
+          that displacement in the ground pattern. Estimates require
+          cross-correlation ≥0.15 and correlation-model RMSE ≤0.35. Blank wind
+          cells failed these objective quality tests. Velocity color scales are
+          fixed at −150…+150 m/s.
         </p>
         <footer>
           <time id="snr_doppler_dense-time">Awaiting plot metadata</time>
-          <span>Two panels · 0–300 km · full 10-second estimates</span>
+          <span>Four panels · ungated RTIs + quality-controlled winds</span>
+        </footer>
+      </article>
+
+      <article class="plot-card selected-rti-card" data-plot="fading_correlation">
+        <header>
+          <div>
+            <span class="channel-id">Fading quality · latest 15 minutes</span>
+            <h3>Baseline delays and peak correlations</h3>
+          </div>
+          <span class="freshness" id="fading_correlation-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open fading-correlation baseline diagnostics">
+          <img id="fading_correlation-image" src="latest_fading_correlation_diagnostics_15m.png" alt="Cross-correlation peak delays and coefficients for all three dipole baselines versus time and altitude">
+        </button>
+        <p class="plot-method">
+          Each row is one dipole baseline. The left color plot is the
+          sub-sample delay of the largest power cross-correlation peak within
+          ±30 seconds; positive delay means the second named antenna sees the
+          pattern later. The right plot is that peak’s normalized correlation
+          coefficient. Every peak is displayed, including low-correlation
+          noise. The wind panels accept a cell only when the median of the
+          three peak correlations is at least 0.15 and the full evolving-ellipse
+          correlation fit has normalized RMSE no greater than 0.35.
+        </p>
+        <footer>
+          <time id="fading_correlation-time">Awaiting plot metadata</time>
+          <span>Three baselines · 70–120 km · no diagnostic masking</span>
         </footer>
       </article>
 

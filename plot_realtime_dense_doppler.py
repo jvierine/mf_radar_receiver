@@ -17,6 +17,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
+import fading_wind
 import mf_conf as mc
 import plot_monitor_rti as monitor
 import radar_common as common
@@ -33,6 +34,9 @@ PLOT_DIR = Path("/data2/plots/monitor")
 COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_15m_0_300.png"
 CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_15m_0_300.png"
 DATA_FILE = PLOT_DIR / "latest_doppler_15m.h5"
+FADING_DIAGNOSTIC_PLOT = (
+    PLOT_DIR / "latest_fading_correlation_diagnostics_15m.png"
+)
 CHANNEL_HEALTH_FIELDS = (
     ("rti1", "Channel 1 · MF3 dipole"),
     ("rti2", "Channel 2 · loop"),
@@ -342,10 +346,13 @@ def plot_combined_rti(
     doppler_times: np.ndarray,
     doppler_ranges: np.ndarray,
     velocity_ms: np.ndarray,
+    wind_times: np.ndarray,
+    zonal_wind_ms: np.ndarray,
+    meridional_wind_ms: np.ndarray,
     start: dt.datetime,
     end: dt.datetime,
 ) -> None:
-    """Plot synchronized fitted-power and Doppler panels without gating."""
+    """Plot ungated RTIs and quality-controlled fading-wind estimates."""
     if len(power_times) < 2:
         raise RuntimeError("fewer than two ten-second SNR estimates")
 
@@ -361,11 +368,10 @@ def plot_combined_rti(
     )
 
     figure, axes = plt.subplots(
-        2,
+        4,
         1,
-        figsize=(15, 9),
+        figsize=(15, 16),
         sharex=True,
-        sharey=True,
         facecolor="#070b14",
         constrained_layout=True,
     )
@@ -425,18 +431,70 @@ def plot_combined_rti(
     )
     doppler_colorbar.ax.tick_params(colors="#8fa1ba")
 
-    for axis in axes:
+    wind_datetimes = [
+        dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+        for value in wind_times
+    ]
+    zonal_image = axes[2].pcolormesh(
+        wind_datetimes,
+        fading_wind.ALTITUDE_KM,
+        zonal_wind_ms.T,
+        shading="nearest",
+        cmap="seismic",
+        vmin=-DISPLAY_LIMIT_MS,
+        vmax=DISPLAY_LIMIT_MS,
+    )
+    axes[2].set_title(
+        "Zonal neutral wind · east positive · five-minute fading correlation"
+    )
+    zonal_colorbar = figure.colorbar(zonal_image, ax=axes[2], pad=0.01)
+    zonal_colorbar.set_label("Zonal wind (m/s)", color="#b7c5d9")
+    zonal_colorbar.ax.tick_params(colors="#8fa1ba")
+
+    meridional_image = axes[3].pcolormesh(
+        wind_datetimes,
+        fading_wind.ALTITUDE_KM,
+        meridional_wind_ms.T,
+        shading="nearest",
+        cmap="seismic",
+        vmin=-DISPLAY_LIMIT_MS,
+        vmax=DISPLAY_LIMIT_MS,
+    )
+    axes[3].set_title(
+        "Meridional neutral wind · north positive · five-minute fading correlation"
+    )
+    meridional_colorbar = figure.colorbar(
+        meridional_image,
+        ax=axes[3],
+        pad=0.01,
+    )
+    meridional_colorbar.set_label(
+        "Meridional wind (m/s)",
+        color="#b7c5d9",
+    )
+    meridional_colorbar.ax.tick_params(colors="#8fa1ba")
+
+    for axis in axes[:2]:
         axis.set_xlim(start, end)
         axis.set_ylim(0.0, DISPLAY_RANGE_MAX_KM)
         axis.set_ylabel("Round-trip range (km)")
-    axes[1].set_xlabel("Time (UTC)", color="#b7c5d9")
-    axes[1].xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
-    axes[1].xaxis.set_major_formatter(
+    for axis in axes[2:]:
+        axis.set_xlim(start, end)
+        axis.set_ylim(
+            fading_wind.ALTITUDE_KM[0]
+            - fading_wind.ALTITUDE_HALF_WIDTH_KM,
+            fading_wind.ALTITUDE_KM[-1]
+            + fading_wind.ALTITUDE_HALF_WIDTH_KM,
+        )
+        axis.set_ylabel("Altitude (km)")
+    axes[-1].set_xlabel("Time (UTC)", color="#b7c5d9")
+    axes[-1].xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
+    axes[-1].xaxis.set_major_formatter(
         mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
     )
     figure.suptitle(
         "Ramfjordmoen MF radar · latest 15 minutes · "
-        "ungated fitted power and Doppler",
+        "power, Doppler, and fading winds",
         color="#edf4ff",
         fontsize=18,
         weight="semibold",
@@ -449,6 +507,125 @@ def plot_combined_rti(
     )
     plt.close(figure)
     os.replace(temporary, COMBINED_PLOT)
+
+
+def plot_fading_correlation_diagnostics(
+    wind_times: np.ndarray,
+    baseline_delay_s: np.ndarray,
+    baseline_peak_correlation: np.ndarray,
+    start: dt.datetime,
+    end: dt.datetime,
+) -> None:
+    """Plot all baseline lag peaks and their correlation coefficients."""
+    time_values = [
+        dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+        for value in wind_times
+    ]
+    channel_names = ("ch1", "ch3", "ch4")
+    figure, axes = plt.subplots(
+        len(fading_wind.PAIR_INDICES),
+        2,
+        figsize=(16, 13),
+        sharex=True,
+        sharey=True,
+        facecolor="#070b14",
+        constrained_layout=True,
+    )
+    for pair_index, (first, second) in enumerate(
+        fading_wind.PAIR_INDICES
+    ):
+        baseline = (
+            fading_wind.ANTENNA_EN_M[second]
+            - fading_wind.ANTENNA_EN_M[first]
+        )
+        baseline_length = float(np.linalg.norm(baseline))
+        label = (
+            f"{channel_names[first]} → {channel_names[second]} · "
+            f"ΔE={baseline[0]:+.1f} m, ΔN={baseline[1]:+.1f} m · "
+            f"{baseline_length:.1f} m"
+        )
+        delay_image = axes[pair_index, 0].pcolormesh(
+            time_values,
+            fading_wind.ALTITUDE_KM,
+            baseline_delay_s[:, :, pair_index].T,
+            shading="nearest",
+            cmap="seismic",
+            vmin=-fading_wind.MAX_LAG_S,
+            vmax=fading_wind.MAX_LAG_S,
+        )
+        axes[pair_index, 0].set_title(
+            f"{label}\npeak delay",
+            color="#edf4ff",
+        )
+        delay_colorbar = figure.colorbar(
+            delay_image,
+            ax=axes[pair_index, 0],
+            pad=0.01,
+        )
+        delay_colorbar.set_label(
+            "Delay (s)",
+            color="#b7c5d9",
+        )
+        delay_colorbar.ax.tick_params(colors="#8fa1ba")
+
+        correlation_image = axes[pair_index, 1].pcolormesh(
+            time_values,
+            fading_wind.ALTITUDE_KM,
+            baseline_peak_correlation[:, :, pair_index].T,
+            shading="nearest",
+            cmap="viridis",
+            vmin=0.0,
+            vmax=1.0,
+        )
+        axes[pair_index, 1].set_title(
+            f"{label}\npeak correlation",
+            color="#edf4ff",
+        )
+        correlation_colorbar = figure.colorbar(
+            correlation_image,
+            ax=axes[pair_index, 1],
+            pad=0.01,
+        )
+        correlation_colorbar.set_label(
+            "Correlation coefficient",
+            color="#b7c5d9",
+        )
+        correlation_colorbar.ax.tick_params(colors="#8fa1ba")
+
+    for axis in axes.ravel():
+        axis.set_facecolor("#050810")
+        axis.set_xlim(start, end)
+        axis.set_ylim(
+            fading_wind.ALTITUDE_KM[0]
+            - fading_wind.ALTITUDE_HALF_WIDTH_KM,
+            fading_wind.ALTITUDE_KM[-1]
+            + fading_wind.ALTITUDE_HALF_WIDTH_KM,
+        )
+        axis.set_ylabel("Altitude (km)", color="#b7c5d9")
+        axis.tick_params(colors="#8fa1ba")
+        for spine in axis.spines.values():
+            spine.set_color("#314563")
+    for axis in axes[-1]:
+        axis.set_xlabel("Time (UTC)", color="#b7c5d9")
+        axis.xaxis.set_major_locator(mdates.MinuteLocator(interval=5))
+        axis.xaxis.set_major_formatter(
+            mdates.DateFormatter("%H:%M", tz=dt.timezone.utc)
+        )
+    figure.suptitle(
+        "Ramfjordmoen MF radar · fading-correlation quality audit · "
+        "latest 15 minutes",
+        color="#edf4ff",
+        fontsize=18,
+        weight="semibold",
+    )
+    temporary = FADING_DIAGNOSTIC_PLOT.with_suffix(".tmp.png")
+    figure.savefig(
+        temporary,
+        dpi=150,
+        facecolor=figure.get_facecolor(),
+    )
+    plt.close(figure)
+    os.replace(temporary, FADING_DIAGNOSTIC_PLOT)
 
 
 def main() -> None:
@@ -496,11 +673,31 @@ def main() -> None:
         raise RuntimeError("SNR and Doppler ten-second timestamps differ")
     if not np.array_equal(ranges, channel_ranges):
         raise RuntimeError("SNR and Doppler range vectors differ")
+    (
+        wind_times,
+        zonal_wind_ms,
+        meridional_wind_ms,
+        wind_peak_correlation,
+        wind_fit_rmse,
+        baseline_delay_s,
+        baseline_peak_correlation,
+    ) = fading_wind.estimate_winds(
+        reader,
+        start_unix,
+        end_unix,
+    )
     PLOT_DIR.mkdir(parents=True, exist_ok=True)
     plot_channel_health(
         channel_times,
         channel_ranges,
         channel_power,
+        start,
+        end,
+    )
+    plot_fading_correlation_diagnostics(
+        wind_times,
+        baseline_delay_s,
+        baseline_peak_correlation,
         start,
         end,
     )
@@ -511,6 +708,9 @@ def main() -> None:
         times,
         ranges,
         velocity,
+        wind_times,
+        zonal_wind_ms,
+        meridional_wind_ms,
         start,
         end,
     )
@@ -533,6 +733,23 @@ def main() -> None:
         )
         handle.attrs["broadband_noise_power"] = (
             "mean_processed_voltage_power_over_30_to_50_km_and_15_minutes"
+        )
+        handle.attrs["fading_wind_method"] = (
+            "evolving_elliptical_full_correlation_analysis"
+        )
+        handle.attrs["fading_wind_pattern_to_neutral_factor"] = 0.5
+        handle.attrs["fading_wind_window_seconds"] = fading_wind.WINDOW_S
+        handle.attrs["fading_wind_output_cadence_seconds"] = (
+            fading_wind.OUTPUT_CADENCE_S
+        )
+        handle.attrs["fading_baseline_pairs"] = (
+            "ch1_to_ch3,ch1_to_ch4,ch3_to_ch4"
+        )
+        handle.attrs["fading_delay_sign"] = (
+            "positive_when_second_named_antenna_sees_pattern_later"
+        )
+        handle.attrs["fading_delay_search_limit_seconds"] = (
+            fading_wind.MAX_LAG_S
         )
         handle.create_dataset("time_unix", data=times)
         handle.create_dataset("range_km", data=ranges)
@@ -575,9 +792,57 @@ def main() -> None:
             compression_opts=1,
             shuffle=True,
         )
+        handle.create_dataset("wind_time_unix", data=wind_times)
+        handle.create_dataset(
+            "wind_altitude_km",
+            data=fading_wind.ALTITUDE_KM,
+        )
+        handle.create_dataset(
+            "zonal_wind_ms",
+            data=zonal_wind_ms,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "meridional_wind_ms",
+            data=meridional_wind_ms,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "wind_peak_correlation",
+            data=wind_peak_correlation,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "wind_fit_rmse",
+            data=wind_fit_rmse,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "fading_baseline_delay_s",
+            data=baseline_delay_s,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "fading_baseline_peak_correlation",
+            data=baseline_peak_correlation,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
     os.replace(temporary_data, DATA_FILE)
     print(f"Four-channel SNR health: {CHANNEL_HEALTH_PLOT}")
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
+    print(f"Fading correlation diagnostics: {FADING_DIAGNOSTIC_PLOT}")
     print(f"Dense fit cells: {velocity.size}")
 
 

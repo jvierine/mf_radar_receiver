@@ -47,6 +47,13 @@ sinusoid-fit SNR, fitted narrowband power for each dipole, processed broadband
 noise power, and the summed narrowband-to-broadband power ratio. The loop is
 shown separately for receiver health but excluded from the joint Doppler fit.
 
+The realtime image also contains zonal and meridional winds from an evolving
+elliptical full-correlation fit to the three dipoles' power-fading patterns.
+Five-minute windows produce one estimate per minute at 70–120 km altitude.
+The fitted ground-pattern velocity is divided by two to obtain neutral wind;
+correlation and model-residual thresholds blank unreliable estimates without
+gating the power or Doppler RTIs.
+
 ## Storage layout
 
 - `/data1`: raw-voltage Digital RF ring buffer, capped at 10 TB (about 50% of
@@ -64,6 +71,10 @@ by at most one in-progress historical block.
 
 The realtime Doppler timer processes the latest 15 minutes into ungated
 ten-second fitted-power and Doppler products.
+
+The rolling 48-hour 0–200 km monitor product adds one ungated ten-second
+common-frequency Doppler fit per minute below the existing power RTI. Its
+incremental HDF5 state is stored on `/data2`.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  
