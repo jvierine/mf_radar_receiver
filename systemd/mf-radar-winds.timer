@@ -1,5 +1,5 @@
 [Unit]
-Description=Refresh realtime three-dipole Doppler and AoA every five minutes
+Description=Refresh realtime three-dipole Doppler every five minutes
 
 [Timer]
 OnBootSec=3min

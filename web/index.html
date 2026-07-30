@@ -151,59 +151,32 @@
       <article class="plot-card selected-rti-card" data-plot="snr_doppler_dense">
         <header>
           <div>
-            <span class="channel-id">Coherent power + Doppler · latest 15 minutes</span>
+            <span class="channel-id">Fitted power + Doppler · latest 15 minutes</span>
             <h3>Synchronized 10-second RTIs</h3>
           </div>
           <span class="freshness" id="snr_doppler_dense-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized coherent-power and fitted-Doppler RTIs">
-          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized 10-second coherent-power and fitted-Doppler RTIs from 0 to 300 kilometres">
+        <button class="plot-button rti-button" type="button" data-plot-index="3" aria-label="Open synchronized fitted-power and Doppler RTIs">
+          <img id="snr_doppler_dense-image" src="latest_snr_doppler_15m_0_300.png" alt="Synchronized ungated 10-second fitted-power and Doppler RTIs from 0 to 300 kilometres">
         </button>
         <p class="plot-method">
           Both panels use the same 15-minute window, 10-second cadence, and
-          0–300 km display grid. The matched filter searches 50–250 km range.
-          The upper panel is the strongest joint Doppler–AoA coherent power
-          from the three dipoles divided by processed broadband noise power,
-          shown on −20…20 dB. Broadband noise is mean
+          0–300 km range grid. Every time–range cell is retained. The upper
+          panel is the sum of independently fitted narrowband power from the
+          three dipoles divided by processed broadband noise power, shown on
+          −20…20 dB. Broadband noise is mean
           30–50 km power after transmit-phase correction, 20 kHz filtering,
           10× decimation, and coherent integration of five 10 ms IPPs.
-          AoA is searched on a WGS84 direction-cosine grid constrained to
-          50–150 km altitude and at least 20° elevation. Up to twelve local
-          AoA maxima within 6 dB of the best are retained in HDF5; the
-          strongest joint maximum supplies the plotted power and Doppler.
-          Monostatic velocity uses
-          v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
-          or wind-continuity gate is applied, so noise-only cells also return
-          bounded fits. The loop is excluded because its lower SNR and stronger
-          RFI can degrade the normalized fit. Color is fixed at −150…+150 m/s.
+          The lower panel fits one common Doppler frequency while allowing an
+          independent complex amplitude on each dipole. Monostatic velocity
+          uses v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA,
+          altitude, zenith-angle, or velocity gate is applied. The loop is
+          excluded because its lower SNR and stronger RFI can degrade the fit.
+          Color is fixed at −150…+150 m/s.
         </p>
         <footer>
           <time id="snr_doppler_dense-time">Awaiting plot metadata</time>
           <span>Two panels · 0–300 km · full 10-second estimates</span>
-        </footer>
-      </article>
-
-      <article class="plot-card selected-rti-card" data-plot="interferometry_ambiguities">
-        <header>
-          <div>
-            <span class="channel-id">Three calibrated dipoles · latest 15 minutes</span>
-            <h3>Interferometric ambiguity audit</h3>
-          </div>
-          <span class="freshness" id="interferometry_ambiguities-freshness">—</span>
-        </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open interferometric ambiguity diagnostic">
-          <img id="interferometry_ambiguities-image" src="latest_interferometry_ambiguities.png" alt="Diagnostic plots of retained Doppler and angle-of-arrival ambiguities">
-        </button>
-        <p class="plot-method">
-          This audit uses the actual ambiguity rows retained by the joint
-          ten-second Doppler–AoA matched filter. It shows candidate multiplicity,
-          every feasible east/north position, WGS84 altitude versus range, and
-          relative coherent power. Nothing is manually selected or visually
-          accepted.
-        </p>
-        <footer>
-          <time id="interferometry_ambiguities-time">Awaiting plot metadata</time>
-          <span>All retained lobes · WGS84 geometry</span>
         </footer>
       </article>
 
@@ -256,8 +229,8 @@
         One profile is retained per minute over a rolling 48-hour window.
         This is an operational quick-look. It uses coherent pulse integration,
         but not phase calibration between antennas, beamforming, or Doppler
-        selection. The synchronized ten-second product above performs those
-        additional interferometric and Doppler steps.
+        selection. The synchronized ten-second product above adds only the
+        ungated common-frequency Doppler fit.
       </p>
     </section>
 

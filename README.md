@@ -33,23 +33,19 @@ python calibrate_interferometer.py --hours 24
 python calibrate_interferometer.py --hours 24 --install
 ```
 
-## Joint Doppler and angle-of-arrival fit
+## Synchronized ten-second power and Doppler
 
-`aoa_doppler.py` searches each complete ten-second block jointly over Doppler
-and a regular east/north direction-cosine grid using only the calibrated
-dipoles on channels 1, 3, and 4. At each range from 50 to 250 km, `jcoord`
-converts every trial direction to WGS84 geodetic altitude. Only directions at
-50–150 km altitude and at least 20 degrees elevation are searched.
+`plot_realtime_dense_doppler.py` groups five consecutive two-second metadata
+records and fits one common Doppler frequency over the complete ten seconds.
+Channels 1, 3, and 4 retain independent complex amplitudes, and their
+periodogram likelihoods are summed when selecting the frequency. Every
+time-range cell from 0 to 300 km is fitted and retained. No SNR, coherence,
+angle-of-arrival, altitude, zenith-angle, or velocity selection is applied.
 
-The largest coherent three-dipole matched-filter value supplies the displayed
-signal power and radial velocity. Distinct local direction-grid maxima within
-6 dB of the best solution are retained rather than unwrapped. Doppler maxima
-are tested in descending incoherent power. That power is an upper bound on
-every coherent beam, so the search stops only when no remaining Doppler can
-fall within the retained 6 dB interval. The realtime HDF5 product stores up to
-twelve ambiguities per time-range cell, including direction cosines, WGS84
-position and altitude, Doppler, radial velocity, coherent power, relative
-power, and phase match.
+The HDF5 output contains fitted frequency, monostatic radial velocity,
+sinusoid-fit SNR, fitted narrowband power for each dipole, processed broadband
+noise power, and the summed narrowband-to-broadband power ratio. The loop is
+shown separately for receiver health but excluded from the joint Doppler fit.
 
 ## Storage layout
 
@@ -57,13 +53,6 @@ power, and phase match.
   the disk).
 - `/data2`: analyzed products and realtime HDF5/plot products.
 - `/data3` and `/data4`: available data disks.
-
-## Interferometry diagnostics
-
-`plot_interferometry_ambiguities.py` reads the complete ambiguity table
-produced by the joint ten-second matched filter. It plots candidate
-multiplicity, all feasible horizontal positions, WGS84 altitude versus range,
-and relative coherent power. It performs no lobe selection or wind fit.
 
 ## Realtime scheduling
 
@@ -73,9 +62,8 @@ advances that cursor one block at a time only when the one-minute system load
 is below 75% of the available CPU count. Realtime latency is therefore bounded
 by at most one in-progress historical block.
 
-The realtime interferometry timer processes the latest 15 minutes into
-ten-second joint Doppler–AoA fits, writes all retained ambiguities to HDF5, and
-then refreshes the ambiguity audit. It does not run a wind fit.
+The realtime Doppler timer processes the latest 15 minutes into ungated
+ten-second fitted-power and Doppler products.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  

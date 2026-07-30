@@ -17,11 +17,10 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
-import aoa_doppler as aoa
 import mf_conf as mc
-import plot_interferometry_ambiguities as interferometry_ambiguities
 import plot_monitor_rti as monitor
 import radar_common as common
+from plot_dense_doppler import fit_common_sinusoid_fft
 
 
 WINDOW_S = 15 * 60
@@ -29,8 +28,6 @@ FIT_DURATION_S = 10
 SOURCE_RECORD_S = 2
 DISPLAY_LIMIT_MS = 150.0
 DISPLAY_RANGE_MAX_KM = 300.0
-AOA_RANGE_MIN_KM = 50.0
-AOA_RANGE_MAX_KM = 250.0
 NARROWBAND_RATIO_MIN_DB = -20.0
 PLOT_DIR = Path("/data2/plots/monitor")
 COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_15m_0_300.png"
@@ -151,7 +148,6 @@ def fit_ten_second_doppler(
     reader: drf.DigitalMetadataReader,
     start_unix: float,
     end_unix: float,
-    broadband_noise_power: np.ndarray,
 ) -> tuple[
     np.ndarray,
     np.ndarray,
@@ -160,12 +156,9 @@ def fit_ten_second_doppler(
     np.ndarray,
     np.ndarray,
 ]:
-    """Jointly fit Doppler and all feasible interferometric AoA maxima."""
+    """Fit one common Doppler to all three dipoles in every range cell."""
     rows = []
-    all_candidates = []
     fields = DOPPLER_FIELDS
-    phasecal = common.load_phasecal()
-    direction_grid = aoa.build_direction_grid()
     for center_time, keys, group in iter_fit_groups(
         reader,
         start_unix,
@@ -174,11 +167,9 @@ def fit_ten_second_doppler(
         if not all(field in record for record in group for field in fields):
             continue
         ranges = np.asarray(group[0]["rvec"], dtype=np.float64)
-        display_mask = (ranges >= 0.0) & (ranges <= DISPLAY_RANGE_MAX_KM)
-        mask = (ranges >= AOA_RANGE_MIN_KM) & (ranges <= AOA_RANGE_MAX_KM)
+        mask = (ranges >= 0.0) & (ranges <= DISPLAY_RANGE_MAX_KM)
         if not np.any(mask):
             continue
-        display_range = ranges[display_mask]
         selected_range = ranges[mask]
         fit_times = np.concatenate(
             [
@@ -197,54 +188,23 @@ def fit_ten_second_doppler(
                     ],
                     axis=0,
                 )
-                * np.exp(1j * phasecal[channel_index])
-                for field, channel_index in zip(
-                    fields,
-                    DOPPLER_CHANNEL_INDICES,
-                )
+                for field in fields
             ],
             dtype=np.complex128,
-        ).transpose(1, 0, 2)
-        (
-            frequency,
-            velocity,
-            beam_power_ratio,
-            candidates,
-        ) = aoa.joint_aoa_doppler_search(
+        )
+        frequency, fit_snr, fitted_amplitude = fit_common_sinusoid_fft(
             fit_times,
-            channel_voltage,
-            selected_range,
-            broadband_noise_power,
-            direction_grid,
+            channel_voltage.transpose(1, 0, 2),
             common.MAX_FIT_DOPPLER_HZ,
         )
-        display_frequency = np.full(len(display_range), np.nan)
-        display_velocity = np.full(len(display_range), np.nan)
-        display_power = np.full(len(display_range), np.nan)
-        display_indices = np.searchsorted(display_range, selected_range)
-        display_frequency[display_indices] = frequency
-        display_velocity[display_indices] = velocity
-        display_power[display_indices] = beam_power_ratio
-        if len(candidates):
-            candidates = np.copy(candidates)
-            candidates[:, 0] = display_indices[
-                candidates[:, 0].astype(np.int64)
-            ]
-            all_candidates.append(
-                np.column_stack(
-                    (
-                        np.full(len(candidates), center_time),
-                        candidates,
-                    )
-                )
-            )
         rows.append(
             (
                 center_time,
-                display_range,
-                display_frequency,
-                display_velocity,
-                display_power,
+                selected_range,
+                frequency,
+                common.DOPPLER_SIGN * common.DOPPLER_TO_MS * frequency,
+                fit_snr,
+                np.abs(fitted_amplitude) ** 2,
             )
         )
 
@@ -253,13 +213,18 @@ def fit_ten_second_doppler(
     range_km = max((row[1] for row in rows), key=len)
     frequency = np.full((len(rows), len(range_km)), np.nan)
     velocity = np.full((len(rows), len(range_km)), np.nan)
-    beam_power_ratio = np.full_like(velocity, np.nan)
+    fit_snr = np.full_like(velocity, np.nan)
+    fitted_power = np.full(
+        (len(rows), len(DOPPLER_FIELDS), len(range_km)),
+        np.nan,
+    )
     for row_index, (
         _,
         record_range,
         record_frequency,
         record_velocity,
-        record_power,
+        record_snr,
+        record_fitted_power,
     ) in enumerate(rows):
         indices = np.searchsorted(range_km, record_range)
         if (
@@ -269,19 +234,15 @@ def fit_ten_second_doppler(
             raise ValueError("incompatible range vectors within interval")
         frequency[row_index, indices] = record_frequency
         velocity[row_index, indices] = record_velocity
-        beam_power_ratio[row_index, indices] = record_power
-    candidate_table = (
-        np.concatenate(all_candidates, axis=0)
-        if all_candidates
-        else np.empty((0, len(aoa.CANDIDATE_COLUMNS) + 1))
-    )
+        fit_snr[row_index, indices] = record_snr
+        fitted_power[row_index][:, indices] = record_fitted_power
     return (
         np.asarray([row[0] for row in rows], dtype=np.float64),
         range_km,
         frequency,
         velocity,
-        beam_power_ratio,
-        candidate_table,
+        fit_snr,
+        fitted_power,
     )
 
 
@@ -377,14 +338,14 @@ def plot_channel_health(
 def plot_combined_rti(
     power_times: np.ndarray,
     power_ranges: np.ndarray,
-    beam_power_ratio: np.ndarray,
+    narrowband_power_ratio: np.ndarray,
     doppler_times: np.ndarray,
     doppler_ranges: np.ndarray,
     velocity_ms: np.ndarray,
     start: dt.datetime,
     end: dt.datetime,
 ) -> None:
-    """Plot synchronized coherent-power and fitted-Doppler panels."""
+    """Plot synchronized fitted-power and Doppler panels without gating."""
     if len(power_times) < 2:
         raise RuntimeError("fewer than two ten-second SNR estimates")
 
@@ -394,7 +355,7 @@ def plot_combined_rti(
     )
     narrowband_ratio_db = 10.0 * np.log10(
         np.maximum(
-            beam_power_ratio[:, display_mask],
+            narrowband_power_ratio[:, display_mask],
             1e-20,
         )
     )
@@ -429,11 +390,11 @@ def plot_combined_rti(
         vmax=20.0,
     )
     axes[0].set_title(
-        "Best joint Doppler–AoA coherent power / processed broadband noise"
+        "Three-dipole fitted narrowband power / processed broadband noise"
     )
     snr_colorbar = figure.colorbar(snr_image, ax=axes[0], pad=0.01)
     snr_colorbar.set_label(
-        "Coherent fitted power / broadband noise (dB)",
+        "Σ fitted dipole power / broadband noise (dB)",
         color="#b7c5d9",
     )
     snr_colorbar.ax.tick_params(colors="#8fa1ba")
@@ -451,7 +412,7 @@ def plot_combined_rti(
         vmax=DISPLAY_LIMIT_MS,
     )
     axes[1].set_title(
-        "Joint three-dipole 10-second Doppler–AoA matched filter"
+        "Three-dipole common-frequency 10-second fit · every cell retained"
     )
     doppler_colorbar = figure.colorbar(
         doppler_image,
@@ -475,7 +436,7 @@ def plot_combined_rti(
     )
     figure.suptitle(
         "Ramfjordmoen MF radar · latest 15 minutes · "
-        "coherent power and fitted Doppler",
+        "ungated fitted power and Doppler",
         color="#edf4ff",
         fontsize=18,
         weight="semibold",
@@ -520,13 +481,16 @@ def main() -> None:
         ranges,
         frequency_hz,
         velocity,
-        beam_power_ratio,
-        aoa_candidates,
+        fit_snr,
+        fitted_channel_power,
     ) = fit_ten_second_doppler(
         reader,
         start_unix,
         end_unix,
-        doppler_noise_power,
+    )
+    narrowband_power_ratio = np.sum(
+        fitted_channel_power / doppler_noise_power[None, :, None],
+        axis=1,
     )
     if not np.array_equal(times, channel_times):
         raise RuntimeError("SNR and Doppler ten-second timestamps differ")
@@ -543,7 +507,7 @@ def main() -> None:
     plot_combined_rti(
         times,
         ranges,
-        beam_power_ratio,
+        narrowband_power_ratio,
         times,
         ranges,
         velocity,
@@ -555,31 +519,17 @@ def main() -> None:
         handle.attrs["fit_duration_seconds"] = FIT_DURATION_S
         handle.attrs["output_cadence_seconds"] = FIT_DURATION_S
         handle.attrs["doppler_combination"] = (
-            "joint_three_dipole_doppler_aoa_matched_filter"
+            "joint_common_frequency_independent_complex_amplitudes"
         )
         handle.attrs["doppler_channels"] = "ch1,ch3,ch4"
         handle.attrs["excluded_doppler_channels"] = (
             "ch2 loop: lower SNR and stronger RFI"
         )
-        handle.attrs["aoa_search"] = (
-            "all_local_maxima_on_range_constrained_direction_cosine_grid"
+        handle.attrs["measurement_selection"] = (
+            "none_every_0_to_300_km_time_range_cell_is_fitted"
         )
-        handle.attrs["doppler_search"] = (
-            "all_local_fft_maxima_until_the_incoherent_power_upper_bound_"
-            "falls_below_the_retained_ambiguity_threshold"
-        )
-        handle.attrs["aoa_candidate_columns"] = ",".join(
-            ("time_unix", *aoa.CANDIDATE_COLUMNS)
-        )
-        handle.attrs["aoa_grid_size"] = aoa.GRID_SIZE
-        handle.attrs["aoa_max_zenith_deg"] = aoa.MAX_ZENITH_DEG
-        handle.attrs["aoa_altitude_min_km"] = aoa.ALTITUDE_MIN_KM
-        handle.attrs["aoa_altitude_max_km"] = aoa.ALTITUDE_MAX_KM
-        handle.attrs["aoa_ambiguity_relative_power_db"] = (
-            aoa.AMBIGUITY_RELATIVE_POWER_DB
-        )
-        handle.attrs["aoa_max_ambiguities_per_range"] = (
-            aoa.MAX_AMBIGUITIES_PER_RANGE
+        handle.attrs["narrowband_power"] = (
+            "sum_of_squared_independent_complex_dipole_amplitudes"
         )
         handle.attrs["broadband_noise_power"] = (
             "mean_processed_voltage_power_over_30_to_50_km_and_15_minutes"
@@ -601,8 +551,15 @@ def main() -> None:
             shuffle=True,
         )
         handle.create_dataset(
-            "beam_power_ratio",
-            data=beam_power_ratio,
+            "sinusoid_snr",
+            data=fit_snr,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "fitted_narrowband_power_by_channel",
+            data=fitted_channel_power,
             compression="gzip",
             compression_opts=1,
             shuffle=True,
@@ -613,24 +570,15 @@ def main() -> None:
         )
         handle.create_dataset(
             "narrowband_to_broadband_noise_ratio",
-            data=beam_power_ratio,
-            compression="gzip",
-            compression_opts=1,
-            shuffle=True,
-        )
-        handle.create_dataset(
-            "aoa_candidates",
-            data=aoa_candidates,
+            data=narrowband_power_ratio,
             compression="gzip",
             compression_opts=1,
             shuffle=True,
         )
     os.replace(temporary_data, DATA_FILE)
-    interferometry_ambiguities.main(DATA_FILE, PLOT_DIR)
     print(f"Four-channel SNR health: {CHANNEL_HEALTH_PLOT}")
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
     print(f"Dense fit cells: {velocity.size}")
-    print(f"Retained AoA ambiguities: {len(aoa_candidates)}")
 
 
 if __name__ == "__main__":

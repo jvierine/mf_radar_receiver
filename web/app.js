@@ -20,15 +20,9 @@ const plots = [
   },
   {
     id: "snr_doppler_dense",
-    title: "Coherent power and fitted Doppler",
+    title: "Ungated fitted power and Doppler",
     label: "Full 10-second fits · latest 15 min · 0–300 km",
     file: "latest_snr_doppler_15m_0_300.png",
-  },
-  {
-    id: "interferometry_ambiguities",
-    title: "Interferometric ambiguity audit",
-    label: "All retained candidates · latest 15 min",
-    file: "latest_interferometry_ambiguities.png",
   },
 ];
 

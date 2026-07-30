@@ -1,5 +1,5 @@
 [Unit]
-Description=Estimate realtime three-dipole MF radar Doppler and AoA
+Description=Estimate realtime three-dipole MF radar Doppler
 After=network-online.target
 
 [Service]

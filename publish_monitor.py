@@ -93,15 +93,15 @@ def process_rows() -> list[dict]:
             "pid": None,
         }
     )
-    interferometry_timer_active = subprocess.run(
+    doppler_timer_active = subprocess.run(
         ["systemctl", "is-active", "--quiet", "mf-radar-winds.timer"],
         check=False,
     ).returncode == 0
     result.append(
         {
-            "name": "interferometry_timer",
-            "label": "Realtime Doppler–AoA processor timer",
-            "alive": interferometry_timer_active,
+            "name": "doppler_timer",
+            "label": "Realtime fitted-Doppler processor timer",
+            "alive": doppler_timer_active,
             "pid": None,
         }
     )
@@ -223,7 +223,6 @@ def main() -> None:
     optional = (
         plot_dir / "latest_channel_snr_15m_0_300.png",
         plot_dir / "latest_snr_doppler_15m_0_300.png",
-        plot_dir / "latest_interferometry_ambiguities.png",
     )
     missing = [str(path) for path in required if not path.exists()]
     if missing:
