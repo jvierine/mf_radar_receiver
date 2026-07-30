@@ -224,7 +224,6 @@ def main() -> None:
         plot_dir / "latest_channel_snr_15m_0_300.png",
         plot_dir / "latest_snr_doppler_15m_0_300.png",
         plot_dir / "latest_interferometry_ambiguities.png",
-        plot_dir / "latest_interferometry_wind_fit.png",
     )
     missing = [str(path) for path in required if not path.exists()]
     if missing:

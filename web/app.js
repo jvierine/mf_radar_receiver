@@ -30,12 +30,6 @@ const plots = [
     label: "All retained candidates · latest 15 min",
     file: "latest_interferometry_ambiguities.png",
   },
-  {
-    id: "interferometry_wind_fit",
-    title: "Diagnostic zonal/meridional fit",
-    label: "Automated ambiguity selection · not validated",
-    file: "latest_interferometry_wind_fit.png",
-  },
 ];
 
 const dialog = document.querySelector("#plot-dialog");

@@ -19,7 +19,7 @@ import numpy as np
 
 import aoa_doppler as aoa
 import mf_conf as mc
-import plot_interferometry_debug as interferometry_debug
+import plot_interferometry_ambiguities as interferometry_ambiguities
 import plot_monitor_rti as monitor
 import radar_common as common
 
@@ -626,7 +626,7 @@ def main() -> None:
             shuffle=True,
         )
     os.replace(temporary_data, DATA_FILE)
-    interferometry_debug.main(DATA_FILE, PLOT_DIR)
+    interferometry_ambiguities.main(DATA_FILE, PLOT_DIR)
     print(f"Four-channel SNR health: {CHANNEL_HEALTH_PLOT}")
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
     print(f"Dense fit cells: {velocity.size}")

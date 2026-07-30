@@ -60,19 +60,10 @@ power, and phase match.
 
 ## Interferometry diagnostics
 
-`plot_interferometry_debug.py` reads the ambiguity table produced by the joint
-ten-second matched filter. It writes an ambiguity audit and a deliberately
-labelled provisional zonal/meridional fit. The diagnostic alternates between
-selecting one Doppler–AoA candidate per time-range cell and fitting zonal and
-meridional wind on 10 km altitude knots with second-difference smoothness.
-Only candidates with at least 10 dB coherent-power ratio, 0.80 phase match,
-70–150 km altitude, and radial velocity within ±150 m/s enter this diagnostic.
-A 40 m/s residual gate is applied only when displaying the provisional fit.
-
-The selected candidates, predicted radial velocities, residuals, acceptance
-mask, and fitted profiles are stored in
-`latest_interferometry_debug.h5`. This is a debugging product, not yet a
-validated wind retrieval.
+`plot_interferometry_ambiguities.py` reads the complete ambiguity table
+produced by the joint ten-second matched filter. It plots candidate
+multiplicity, all feasible horizontal positions, WGS84 altitude versus range,
+and relative coherent power. It performs no lobe selection or wind fit.
 
 ## Realtime scheduling
 
@@ -84,8 +75,7 @@ by at most one in-progress historical block.
 
 The realtime interferometry timer processes the latest 15 minutes into
 ten-second joint Doppler–AoA fits, writes all retained ambiguities to HDF5, and
-then refreshes the two diagnostic plots. It does not run the removed
-selected-pixel wind processor.
+then refreshes the ambiguity audit. It does not run a wind fit.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  
