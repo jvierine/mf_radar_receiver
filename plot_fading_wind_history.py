@@ -390,11 +390,11 @@ def update_history(
         axis=(1, 2),
     )
     missing_indices = np.flatnonzero(~completed)[::-1]
-    if max_windows > 0:
-        missing_indices = missing_indices[:max_windows]
     added = 0
     unavailable = 0
     for index in missing_indices:
+        if max_windows > 0 and added >= max_windows:
+            break
         center = int(desired_times[index])
         try:
             result = estimate_window(reader, center)
