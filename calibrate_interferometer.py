@@ -75,7 +75,7 @@ def fit_group_phasors(
 ):
     """Return fitted-amplitude phase phasors for one complete ten-second group."""
     from plot_dense_doppler import fit_common_sinusoid_fft
-    import wind_estimates_3ch_2days as winds
+    import radar_common as common
 
     fields = [f"rti{channel}" for channel in CHANNELS]
     if not all(
@@ -118,7 +118,7 @@ def fit_group_phasors(
     frequency, _, dipole_amplitude = fit_common_sinusoid_fft(
         fit_times,
         channel_voltage[:, np.asarray(DIPOLE_INDICES), :],
-        winds.MAX_FIT_DOPPLER_HZ,
+        common.MAX_FIT_DOPPLER_HZ,
     )
 
     model = np.exp(2j * np.pi * fit_times[:, None] * frequency[None, :])

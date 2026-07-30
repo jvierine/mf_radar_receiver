@@ -55,53 +55,24 @@ power, and phase match.
 
 - `/data1`: raw-voltage Digital RF ring buffer, capped at 10 TB (about 50% of
   the disk).
-- `/data2`: analyzed products, including zonal and meridional wind estimates
-  under `/data2/products/winds/`.
+- `/data2`: analyzed products and realtime HDF5/plot products.
 - `/data3` and `/data4`: available data disks.
 
-## First-cut three-dipole echo selection
+## Interferometry diagnostics
 
-`wind_estimates_3ch_2days.py` estimates angle of arrival from the ch1, ch3,
-and ch4 dipoles only. It computes normalized cross-spectral coherence on all
-three baselines after averaging the auto- and cross-spectra over a 3 × 3
-Doppler-range neighborhood. A detection is retained when the mean baseline
-coherence is at least 0.80 and its interferometric geometric altitude is
-between 70 and 150 km. The AoA search extends to 70 degrees from zenith,
-equivalent to 20 degrees elevation above the horizon.
+`plot_interferometry_debug.py` reads the ambiguity table produced by the joint
+ten-second matched filter. It writes an ambiguity audit and a deliberately
+labelled provisional zonal/meridional fit. The diagnostic alternates between
+selecting one Doppler–AoA candidate per time-range cell and fitting zonal and
+meridional wind on 10 km altitude knots with second-difference smoothness.
+Only candidates with at least 10 dB coherent-power ratio, 0.80 phase match,
+70–150 km altitude, and radial velocity within ±150 m/s enter this diagnostic.
+A 40 m/s residual gate is applied only when displaying the provisional fit.
 
-The averaged cross-spectral phases, rather than individual FFT-pixel products,
-are passed to the interferometric angle-of-arrival solver. Its distinct
-grating-lobe candidates are resolved using the previous accepted
-height-resolved mean wind. A lobe is rejected when its observed radial velocity
-differs from that wind's predicted radial velocity by more than 40 m/s.
-
-For each accepted AoA, the ch1, ch3, and ch4 complex time series are phase
-steered and coherently added. Doppler is then estimated from the centered
-one-second complex-voltage segment (20 samples at the 20 Hz coherently
-integrated voltage rate). The segment is divided by its RMS amplitude before
-the bounded least-squares complex-sinusoid fit; this improves numerical
-conditioning without changing fitted frequency or SNR. The hard monostatic
-radial-velocity interval is `[-300, 300] m/s`, using
-`v_r = -wavelength * f_D / 2`. The fitted sinusoid must also pass the high-SNR
-threshold.
-
-The intermediate echo-snippet rows contain timestamp, relative ENU position,
-geometric altitude, three direction cosines, slant range, geographic
-latitude/longitude/altitude, mean coherence, phase closure, AoA phase residual,
-AoA match, fitted Doppler and radial velocity, beamformed SNR, range-gate
-index, and mean-wind continuity residual. The timestamp and range-gate index
-reference the retained complex RTI snippet in Digital RF metadata.
-
-Wind fits use fitted radial velocities with SNR times squared coherence as
-their weight. They are rejected automatically unless there are enough echoes,
-at least three occupied azimuth sectors, a well-conditioned inversion, and
-acceptable robust velocity residuals. There is no visual or manual acceptance
-step; failed bins contain no wind estimate.
-
-Results are written separately under
-`/data2/products/winds/3ch_coherent_2day_z70/`. Each window includes zonal and
-meridional wind products plus one RTI showing only the automatically selected
-pixels used by the wind processor.
+The selected candidates, predicted radial velocities, residuals, acceptance
+mask, and fitted profiles are stored in
+`latest_interferometry_debug.h5`. This is a debugging product, not yet a
+validated wind retrieval.
 
 ## Realtime scheduling
 
@@ -111,14 +82,10 @@ advances that cursor one block at a time only when the one-minute system load
 is below 75% of the available CPU count. Realtime latency is therefore bounded
 by at most one in-progress historical block.
 
-The wind timer follows the same policy: it first processes a rolling ten-minute
-window ending at the newest reduced two-second sample and maintains a separate
-rolling 48-hour realtime product under
-`/data2/products/winds/3ch_coherent_realtime_z70/`. Each timer run may process at
-most one historical ten-minute block afterward, and only when CPU headroom is
-available. Historical plots cannot overwrite the realtime monitor products.
-Detections from overlapping realtime windows are de-duplicated by their
-two-second timestamp and range-gate index before products and plots are saved.
+The realtime interferometry timer processes the latest 15 minutes into
+ten-second joint Doppler–AoA fits, writes all retained ambiguities to HDF5, and
+then refreshes the two diagnostic plots. It does not run the removed
+selected-pixel wind processor.
 
 ![rti-1734700851205636](https://github.com/user-attachments/assets/427b2758-fa5a-4433-95e2-4bfb231de57e)
  

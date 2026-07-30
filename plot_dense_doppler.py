@@ -19,7 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import mf_conf as mc
-import wind_estimates_3ch_2days as winds
+import radar_common as common
 
 
 CHANNEL_FIELDS = ("rti1", "rti3", "rti4")
@@ -65,7 +65,7 @@ def fit_sinusoid_bank(
     sample_interval = float(np.median(np.diff(times)))
     fit_samples = min(
         len(times),
-        max(2, int(round(winds.DOPPLER_FIT_DURATION_S / sample_interval))),
+        max(2, int(round(common.DOPPLER_FIT_DURATION_S / sample_interval))),
     )
     fit_start = (len(times) - fit_samples) // 2
     fit_stop = fit_start + fit_samples
@@ -78,8 +78,8 @@ def fit_sinusoid_bank(
     normalized[:, valid] = fit_voltage[:, valid] / scale[valid]
 
     frequency_grid = np.linspace(
-        -winds.MAX_FIT_DOPPLER_HZ,
-        winds.MAX_FIT_DOPPLER_HZ,
+        -common.MAX_FIT_DOPPLER_HZ,
+        common.MAX_FIT_DOPPLER_HZ,
         401,
     )
     basis = np.exp(
@@ -319,8 +319,8 @@ def dense_doppler(
                 (
                     float(key) / 1e6 + 1.0,
                     selected_range,
-                    winds.DOPPLER_SIGN
-                    * winds.DOPPLER_TO_MS
+                    common.DOPPLER_SIGN
+                    * common.DOPPLER_TO_MS
                     * best_frequency,
                     best_snr,
                 )

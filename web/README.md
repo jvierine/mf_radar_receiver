@@ -46,3 +46,9 @@ by the Doppler fit. Each channel is referenced to its own interval-mean power
 between 30 and 50 km, while all panels share the same -10 to +20 dB scale.
 
 The old selected-pixel RTI and its realtime processing stage are not used.
+
+`latest_interferometry_ambiguities.png` audits every candidate retained by the
+joint Doppler–AoA search. `latest_interferometry_wind_fit.png` is an explicitly
+provisional, fully automatic ambiguity-resolving fit of altitude-smooth zonal
+and meridional wind. Its selected candidates and residuals are also stored in
+`latest_interferometry_debug.h5` on the receiver.

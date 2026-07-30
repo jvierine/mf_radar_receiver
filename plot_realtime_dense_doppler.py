@@ -18,11 +18,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import aoa_doppler as aoa
-import image_help as ih
 import mf_conf as mc
+import plot_interferometry_debug as interferometry_debug
 import plot_monitor_rti as monitor
-import wind_estimates_3ch_2days as winds
-from plot_dense_doppler import fit_sinusoid_bank
+import radar_common as common
 
 
 WINDOW_S = 15 * 60
@@ -36,13 +35,7 @@ NARROWBAND_RATIO_MIN_DB = -20.0
 PLOT_DIR = Path("/data2/plots/monitor")
 COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_15m_0_300.png"
 CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_15m_0_300.png"
-POSITIONS_PLOT = PLOT_DIR / "latest_dense_positions_5m.png"
 DATA_FILE = PLOT_DIR / "latest_doppler_15m.h5"
-POSITION_WINDOW_S = 5 * 60
-POSITION_FIT_SNR_MIN = 5.0
-POSITION_COHERENCE_MIN = 0.8
-POSITION_PHASE_CLOSURE_MAX = 0.35
-POSITION_PHASE_RESIDUAL_MAX = 0.35
 CHANNEL_HEALTH_FIELDS = (
     ("rti1", "Channel 1 · MF3 dipole"),
     ("rti2", "Channel 2 · loop"),
@@ -171,7 +164,7 @@ def fit_ten_second_doppler(
     rows = []
     all_candidates = []
     fields = DOPPLER_FIELDS
-    phasecal = winds.load_phasecal()
+    phasecal = common.load_phasecal()
     direction_grid = aoa.build_direction_grid()
     for center_time, keys, group in iter_fit_groups(
         reader,
@@ -223,7 +216,7 @@ def fit_ten_second_doppler(
             selected_range,
             broadband_noise_power,
             direction_grid,
-            winds.MAX_FIT_DOPPLER_HZ,
+            common.MAX_FIT_DOPPLER_HZ,
         )
         display_frequency = np.full(len(display_range), np.nan)
         display_velocity = np.full(len(display_range), np.nan)
@@ -497,218 +490,6 @@ def plot_combined_rti(
     os.replace(temporary, COMBINED_PLOT)
 
 
-def plot_recent_positions(
-    reader: drf.DigitalMetadataReader,
-    end_unix: float,
-) -> int:
-    """Image the latest five minutes directly from dense per-cell fits."""
-    phasecal = winds.load_phasecal()
-    coordinates = winds.antenna_coordinates_ecef()
-    position_differences = [
-        coordinates[0, :] - coordinates[2, :],
-        coordinates[0, :] - coordinates[3, :],
-        coordinates[2, :] - coordinates[3, :],
-    ]
-    position_start = end_unix - POSITION_WINDOW_S
-    metadata = reader.read(
-        int(position_start * 1e6),
-        int(end_unix * 1e6) - 1,
-    )
-    position_rows = []
-    for key in sorted(metadata):
-        record = metadata[key]
-        if not all(
-            field in record
-            for field in ("rti1", "rti3", "rti4", "rvec", "tvec")
-        ):
-            continue
-        ranges = np.asarray(record["rvec"], dtype=np.float64)
-        range_mask = (ranges >= 70.0) & (ranges <= 200.0)
-        ranges = ranges[range_mask]
-        if not len(ranges):
-            continue
-        times = np.asarray(record["tvec"], dtype=np.float64)
-        channel_voltage = np.asarray(
-            [
-                np.asarray(record[field])[:, range_mask]
-                * np.exp(1j * phasecal[channel_index])
-                for field, channel_index in (
-                    ("rti1", 0),
-                    ("rti3", 2),
-                    ("rti4", 3),
-                )
-            ],
-            dtype=np.complex128,
-        )
-        sample_interval = float(np.median(np.diff(times)))
-        fit_samples = min(
-            len(times),
-            max(
-                2,
-                int(
-                    round(
-                        winds.DOPPLER_FIT_DURATION_S / sample_interval
-                    )
-                ),
-            ),
-        )
-        fit_start = (len(times) - fit_samples) // 2
-        fit_stop = fit_start + fit_samples
-        fit_times = times[fit_start:fit_stop] - times[fit_start]
-        fit_voltage = channel_voltage[:, fit_start:fit_stop, :]
-        scale = np.sqrt(np.mean(np.abs(fit_voltage) ** 2, axis=1))
-        valid_scale = np.isfinite(scale) & (scale > 0)
-        safe_scale = np.where(valid_scale, scale, 1.0)
-        normalized = fit_voltage / safe_scale[:, None, :]
-
-        gate_count = len(ranges)
-        bank = normalized.transpose(1, 0, 2).reshape(
-            fit_samples,
-            3 * gate_count,
-        )
-        frequency, fit_snr = fit_sinusoid_bank(fit_times, bank)
-        frequency = frequency.reshape(3, gate_count)
-        fit_snr = fit_snr.reshape(3, gate_count)
-        best_channel = np.argmax(
-            np.where(np.isfinite(fit_snr), fit_snr, -np.inf),
-            axis=0,
-        )
-        gate = np.arange(gate_count)
-        best_frequency = frequency[best_channel, gate]
-        best_snr = fit_snr[best_channel, gate]
-
-        xc13 = np.mean(normalized[0] * np.conj(normalized[1]), axis=0)
-        xc14 = np.mean(normalized[0] * np.conj(normalized[2]), axis=0)
-        xc34 = np.mean(normalized[1] * np.conj(normalized[2]), axis=0)
-        cross = np.asarray([xc13, xc14, xc34])
-        coherence = np.mean(np.abs(cross), axis=0)
-        closure = np.abs(np.angle(xc13 * np.conj(xc14) * xc34))
-        candidate_gates = np.flatnonzero(
-            np.all(valid_scale, axis=0)
-            & np.isfinite(best_frequency)
-            & (best_snr >= POSITION_FIT_SNR_MIN)
-            & (coherence >= POSITION_COHERENCE_MIN)
-            & (closure <= POSITION_PHASE_CLOSURE_MAX)
-        )
-        for range_index in candidate_gates:
-            candidates = ih.aoa_candidates(
-                cross[:, range_index],
-                position_differences,
-                wavelength=mc.wavelength,
-            )
-            accepted = []
-            for east, north, up, phase_residual, match in candidates:
-                altitude = ranges[range_index] * up
-                if not 70.0 <= altitude <= 150.0:
-                    continue
-                if phase_residual > POSITION_PHASE_RESIDUAL_MAX:
-                    continue
-                cost = (
-                    (phase_residual / POSITION_PHASE_RESIDUAL_MAX) ** 2
-                    + (1.0 - match)
-                )
-                accepted.append((cost, east, north, up))
-            if not accepted:
-                continue
-            _, east, north, up = min(accepted, key=lambda row: row[0])
-            radial_velocity = (
-                winds.DOPPLER_SIGN
-                * winds.DOPPLER_TO_MS
-                * best_frequency[range_index]
-            )
-            position_rows.append(
-                (
-                    float(key) / 1e6 + 1.0,
-                    ranges[range_index] * east,
-                    ranges[range_index] * north,
-                    ranges[range_index] * up,
-                    radial_velocity,
-                    best_snr[range_index],
-                    coherence[range_index],
-                    ranges[range_index],
-                )
-            )
-    detections = np.asarray(position_rows, dtype=np.float64)
-    if detections.size == 0:
-        detections = np.empty((0, 8), dtype=np.float64)
-
-    figure, axis = plt.subplots(
-        figsize=(8, 8),
-        facecolor="#070b14",
-        constrained_layout=True,
-    )
-    axis.set_facecolor("#050810")
-    axis.set_xlim(-200, 200)
-    axis.set_ylim(-200, 200)
-    axis.set_aspect("equal", adjustable="box")
-    axis.set_xlabel("East–west position (km)", color="#b7c5d9")
-    axis.set_ylabel("North–south position (km)", color="#b7c5d9")
-    axis.tick_params(colors="#8fa1ba")
-    axis.grid(color="#ffffff", alpha=0.07)
-    for spine in axis.spines.values():
-        spine.set_color("#314563")
-    axis.scatter(
-        [0],
-        [0],
-        marker="+",
-        s=110,
-        linewidths=1.5,
-        color="#edf4ff",
-    )
-
-    if len(detections):
-        velocity_limit = float(
-            np.clip(
-                np.ceil(np.nanpercentile(np.abs(detections[:, 4]), 98)),
-                20,
-                300,
-            )
-        )
-        positions = axis.scatter(
-            detections[:, 1],
-            detections[:, 2],
-            c=detections[:, 4],
-            s=18,
-            cmap="seismic",
-            vmin=-velocity_limit,
-            vmax=velocity_limit,
-            linewidths=0,
-            alpha=0.9,
-            rasterized=True,
-        )
-        colorbar = figure.colorbar(positions, ax=axis, pad=0.02)
-        colorbar.set_label(
-            "Monostatic Doppler velocity (m/s)",
-            color="#b7c5d9",
-        )
-        colorbar.ax.tick_params(colors="#8fa1ba")
-    else:
-        axis.text(
-            0.5,
-            0.5,
-            "No position-quality echoes in the latest five minutes",
-            transform=axis.transAxes,
-            ha="center",
-            va="center",
-            color="#b7c5d9",
-        )
-    axis.set_title(
-        f"Interferometric positions · 5 min · N={len(detections)}",
-        color="#edf4ff",
-        fontsize=14,
-        weight="semibold",
-    )
-    temporary = POSITIONS_PLOT.with_suffix(".tmp.png")
-    figure.savefig(
-        temporary,
-        dpi=170,
-        facecolor=figure.get_facecolor(),
-    )
-    plt.close(figure)
-    os.replace(temporary, POSITIONS_PLOT)
-    return len(detections)
-
-
 def main() -> None:
     reader = drf.DigitalMetadataReader(mc.xc_dir)
     bounds = reader.get_bounds()
@@ -845,6 +626,7 @@ def main() -> None:
             shuffle=True,
         )
     os.replace(temporary_data, DATA_FILE)
+    interferometry_debug.main(DATA_FILE, PLOT_DIR)
     print(f"Four-channel SNR health: {CHANNEL_HEALTH_PLOT}")
     print(f"Combined SNR/Doppler RTI: {COMBINED_PLOT}")
     print(f"Dense fit cells: {velocity.size}")

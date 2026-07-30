@@ -183,6 +183,54 @@
         </footer>
       </article>
 
+      <article class="plot-card selected-rti-card" data-plot="interferometry_ambiguities">
+        <header>
+          <div>
+            <span class="channel-id">Three calibrated dipoles · latest 15 minutes</span>
+            <h3>Interferometric ambiguity audit</h3>
+          </div>
+          <span class="freshness" id="interferometry_ambiguities-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="4" aria-label="Open interferometric ambiguity diagnostic">
+          <img id="interferometry_ambiguities-image" src="latest_interferometry_ambiguities.png" alt="Diagnostic plots of retained Doppler and angle-of-arrival ambiguities">
+        </button>
+        <p class="plot-method">
+          This audit uses the actual ambiguity rows retained by the joint
+          ten-second Doppler–AoA matched filter. It shows candidate multiplicity,
+          every feasible east/north position, WGS84 altitude versus range, and
+          relative coherent power. Nothing is manually selected or visually
+          accepted.
+        </p>
+        <footer>
+          <time id="interferometry_ambiguities-time">Awaiting plot metadata</time>
+          <span>All retained lobes · WGS84 geometry</span>
+        </footer>
+      </article>
+
+      <article class="plot-card selected-rti-card" data-plot="interferometry_wind_fit">
+        <header>
+          <div>
+            <span class="channel-id">Automated debug retrieval · latest 15 minutes</span>
+            <h3>Provisional zonal/meridional disambiguation</h3>
+          </div>
+          <span class="freshness" id="interferometry_wind_fit-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="5" aria-label="Open provisional wind-fit ambiguity diagnostic">
+          <img id="interferometry_wind_fit-image" src="latest_interferometry_wind_fit.png" alt="Diagnostic altitude-smooth zonal and meridional wind fit">
+        </button>
+        <p class="plot-method">
+          One Doppler–AoA candidate per time–range cell is selected jointly
+          with an altitude-smooth horizontal wind profile. The panels show the
+          chosen positions, observed versus predicted radial velocity, fitted
+          zonal and meridional profiles, and residuals. The retrieval is fully
+          automatic but explicitly diagnostic and not yet validated.
+        </p>
+        <footer>
+          <time id="interferometry_wind_fit-time">Awaiting plot metadata</time>
+          <span>Alternating ambiguity selection and smooth wind fit</span>
+        </footer>
+      </article>
+
     </section>
 
     <section class="processing-note" aria-labelledby="processing-title">
