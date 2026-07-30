@@ -58,8 +58,16 @@ def rti(d,
     S_full = np.zeros((n_ipp, IPP // DEC), dtype=np.complex64)
 
     for i in range(n_ipp):
-        z    = d.read_vector_c81d(i0 + i * IPP + OFFSET, IPP, ch)    - mc.dc_offset
-        z_tx = d.read_vector_c81d(i0 + i * IPP + OFFSET, IPP, tx_ch) - mc.dc_offset
+        z = d.read_vector_1d(
+            i0 + i * IPP + OFFSET,
+            IPP,
+            ch,
+        ).astype(np.complex64, casting="unsafe", copy=False) - mc.dc_offset
+        z_tx = d.read_vector_1d(
+            i0 + i * IPP + OFFSET,
+            IPP,
+            tx_ch,
+        ).astype(np.complex64, casting="unsafe", copy=False) - mc.dc_offset
 
         # TX phase reference from first TX_LEN samples
         tx_phase = np.angle(np.mean(z_tx[:TX_LEN]))
