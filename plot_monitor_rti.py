@@ -706,33 +706,37 @@ def main() -> None:
     )
     doppler_times = doppler_times[doppler_keep]
     velocity_ms = velocity_ms[doppler_keep]
-    next_doppler_start = (
-        doppler_window_start
-        if len(doppler_times) == 0
-        else int(doppler_times[-1])
-        - DOPPLER_FIT_DURATION_S // 2
-        + DOPPLER_CADENCE_S
+    desired_starts = np.arange(
+        doppler_window_start,
+        doppler_last_start + 1,
+        DOPPLER_CADENCE_S,
+        dtype=np.int64,
+    )
+    existing_starts = (
+        doppler_times - DOPPLER_FIT_DURATION_S // 2
+    )
+    missing_starts = np.setdiff1d(
+        desired_starts,
+        existing_starts,
+        assume_unique=False,
     )
     new_doppler_times = []
     new_velocity = []
+    skipped_doppler_bins = 0
     for index, group_start in enumerate(
-        range(
-            next_doppler_start,
-            doppler_last_start + 1,
-            DOPPLER_CADENCE_S,
-        ),
+        missing_starts,
         start=1,
     ):
         try:
             record_range, record_velocity = process_doppler_bin(
                 doppler_reader,
-                group_start,
+                int(group_start),
             )
-        except Exception as error:
-            print(f"Skipping Doppler bin {group_start}: {error}")
+        except Exception:
+            skipped_doppler_bins += 1
             continue
         new_doppler_times.append(
-            group_start + DOPPLER_FIT_DURATION_S // 2
+            int(group_start) + DOPPLER_FIT_DURATION_S // 2
         )
         new_velocity.append(
             align_doppler_ranges(
@@ -759,6 +763,14 @@ def main() -> None:
             new_velocity_array
             if velocity_ms.size == 0
             else np.concatenate((velocity_ms, new_velocity_array), axis=0)
+        )
+        order = np.argsort(doppler_times)
+        doppler_times = doppler_times[order]
+        velocity_ms = velocity_ms[order]
+    if len(missing_starts):
+        print(
+            f"Doppler history: added {len(new_doppler_times)}, "
+            f"still unavailable {skipped_doppler_bins}"
         )
     if len(doppler_times) < 2:
         raise RuntimeError("Fewer than two 48-hour Doppler bins are available")
