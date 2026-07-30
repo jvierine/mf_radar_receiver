@@ -20,7 +20,7 @@ PROCESS_PATTERNS = (
     ("ringbuffer", "Digital RF ring buffer", "drf ringbuffer"),
     ("recorder_10", "USRP recorder · 192.168.10.2", "thor.py -m 192.168.10.2"),
     ("recorder_20", "USRP recorder · 192.168.20.2", "thor.py -m 192.168.20.2"),
-    ("processor", "Cross-correlation processor", "python calc_xc.py"),
+    ("processor", "Cross-correlation processor", "calc_xc.py"),
 )
 CHANNELS = ("ch1", "ch2", "ch3", "ch4")
 
