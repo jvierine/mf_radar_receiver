@@ -15,14 +15,14 @@ bins, and the per-profile noise floor is estimated as the 20th percentile
 between 250 and 1400 km. SNR is `(power - noise) / noise`. The mesospheric
 color scale is fixed at -3 to 20 dB.
 
-The upper panel of the latest-15-minute combined product uses one scalar noise
-power: the arithmetic mean power over the entire interval and all 30–50 km
-range bins. Each displayed column uses five consecutive two-second metadata
-records, exactly matching the Doppler interval. Each channel contributes 200
-power samples after five-IPP coherent integration, and three dipole channels
-provide 600 nominal power looks per time/range cell. The fixed display scale
-is -10 to 20 dB. This averaging reduces noise fluctuations; it does not
-increase the mean physical SNR.
+The upper panel of the latest-15-minute combined product shows
+`10 log10(sum_c(|A_c|^2/N_c))` on a fixed -20 to +20 dB scale. `A_c` is the
+complex narrowband amplitude at the jointly fitted common Doppler frequency.
+`N_c` is the channel's broadband mean power over the full 15-minute interval
+and 30–50 km. Broadband here specifically means complex-voltage power after
+transmit-phase correction, the 20 kHz low-pass filter, 10x decimation, and
+coherent integration of five 10 ms IPPs. It is not raw ADC power and is not
+the sinusoid-fit residual.
 
 `publish_monitor.py` collects receiver telemetry and publishes the two plots
 and `status.json` to `/var/www/html/mf/` on `juha.no`. The systemd timer in

@@ -149,13 +149,14 @@
         </button>
         <p class="plot-method">
           Both panels use the same 15-minute window, 10-second cadence, and
-          0–300 km range grid. The upper panel is power relative to the
-          interval-mean 30–50 km background on −10…20 dB. The lower panel fits
-          one common Doppler frequency jointly to all four unit-RMS receiver
-          channels over the full 10 seconds. Each channel has its own fitted
-          complex amplitude; their likelihoods are summed before selecting the
-          common frequency. This includes the three dipoles and the loop without
-          assuming an angle-of-arrival phase. Monostatic velocity uses
+          0–300 km range grid. The upper panel is the sum over all four channels
+          of fitted narrowband sinusoid power divided by processed broadband
+          noise power, shown on −20…20 dB. Broadband noise is mean
+          30–50 km power after transmit-phase correction, 20 kHz filtering,
+          10× decimation, and coherent integration of five 10 ms IPPs.
+          The lower panel uses the same joint common-frequency fit. Each channel
+          has its own complex amplitude; their likelihoods are summed before
+          selecting frequency. Monostatic velocity uses
           v<sub>r</sub> = −λf<sub>D</sub>/2. No SNR, coherence, AoA, altitude,
           or wind-continuity gate is applied, so noise-only cells also return
           bounded fits. Color is fixed at −200…+200 m/s.

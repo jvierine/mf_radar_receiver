@@ -184,7 +184,7 @@ def fit_common_sinusoid_fft(
     times: np.ndarray,
     voltage: np.ndarray,
     maximum_frequency_hz: float,
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Jointly fit one frequency with an independent amplitude per channel.
 
@@ -251,9 +251,11 @@ def fit_common_sinusoid_fft(
         1e-30,
     )
     snr = signal_power / residual_power
+    fitted_amplitude = amplitude * scale
     frequency[~valid] = np.nan
     snr[~valid] = np.nan
-    return frequency, snr
+    fitted_amplitude[:, ~valid] = np.nan
+    return frequency, snr, fitted_amplitude
 
 
 def dense_doppler(

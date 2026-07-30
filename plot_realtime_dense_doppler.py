@@ -29,6 +29,7 @@ FIT_DURATION_S = 10
 SOURCE_RECORD_S = 2
 DISPLAY_LIMIT_MS = 200.0
 DISPLAY_RANGE_MAX_KM = 300.0
+NARROWBAND_RATIO_MIN_DB = -20.0
 PLOT_DIR = Path("/data2/plots/monitor")
 COMBINED_PLOT = PLOT_DIR / "latest_snr_doppler_15m_0_300.png"
 CHANNEL_HEALTH_PLOT = PLOT_DIR / "latest_channel_snr_15m_0_300.png"
@@ -152,7 +153,7 @@ def fit_ten_second_doppler(
     reader: drf.DigitalMetadataReader,
     start_unix: float,
     end_unix: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Fit one sinusoid to every channel/range cell over each full 10 s."""
     rows = []
     fields = ("rti1", "rti2", "rti3", "rti4")
@@ -189,7 +190,7 @@ def fit_ten_second_doppler(
             ],
             dtype=np.complex128,
         )
-        frequency, snr = fit_common_sinusoid_fft(
+        frequency, snr, fitted_amplitude = fit_common_sinusoid_fft(
             fit_times,
             channel_voltage.transpose(1, 0, 2),
             winds.MAX_FIT_DOPPLER_HZ,
@@ -202,6 +203,7 @@ def fit_ten_second_doppler(
                 * winds.DOPPLER_TO_MS
                 * frequency,
                 snr,
+                np.abs(fitted_amplitude) ** 2,
             )
         )
 
@@ -210,9 +212,17 @@ def fit_ten_second_doppler(
     range_km = max((row[1] for row in rows), key=len)
     velocity = np.full((len(rows), len(range_km)), np.nan)
     fit_snr = np.full_like(velocity, np.nan)
-    for row_index, (_, record_range, record_velocity, record_snr) in enumerate(
-        rows
-    ):
+    fitted_power = np.full(
+        (len(rows), len(CHANNEL_HEALTH_FIELDS), len(range_km)),
+        np.nan,
+    )
+    for row_index, (
+        _,
+        record_range,
+        record_velocity,
+        record_snr,
+        record_fitted_power,
+    ) in enumerate(rows):
         indices = np.searchsorted(range_km, record_range)
         if (
             np.any(indices >= len(range_km))
@@ -221,11 +231,13 @@ def fit_ten_second_doppler(
             raise ValueError("incompatible range vectors within interval")
         velocity[row_index, indices] = record_velocity
         fit_snr[row_index, indices] = record_snr
+        fitted_power[row_index][:, indices] = record_fitted_power
     return (
         np.asarray([row[0] for row in rows], dtype=np.float64),
         range_km,
         velocity,
         fit_snr,
+        fitted_power,
     )
 
 
@@ -322,6 +334,7 @@ def plot_combined_rti(
     snr_times: np.ndarray,
     snr_ranges: np.ndarray,
     channel_power: np.ndarray,
+    fitted_channel_power: np.ndarray,
     doppler_times: np.ndarray,
     doppler_ranges: np.ndarray,
     velocity_ms: np.ndarray,
@@ -332,7 +345,6 @@ def plot_combined_rti(
     if len(snr_times) < 2:
         raise RuntimeError("fewer than two ten-second SNR estimates")
 
-    snr_power = np.nanmean(channel_power[:, (0, 2, 3), :], axis=1)
     noise_mask = (
         (snr_ranges >= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[0])
         & (snr_ranges <= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[1])
@@ -341,13 +353,17 @@ def plot_combined_rti(
         (snr_ranges >= 0.0)
         & (snr_ranges <= DISPLAY_RANGE_MAX_KM)
     )
-    background_power = max(
-        float(np.nanmean(snr_power[:, noise_mask])),
+    broadband_noise_power = np.maximum(
+        np.nanmean(channel_power[:, :, noise_mask], axis=(0, 2)),
         1e-20,
     )
-    power_ratio_db = 10.0 * np.log10(
+    narrowband_ratio_db = 10.0 * np.log10(
         np.maximum(
-            snr_power[:, display_mask] / background_power,
+            np.sum(
+                fitted_channel_power[:, :, display_mask]
+                / broadband_noise_power[None, :, None],
+                axis=1,
+            ),
             1e-20,
         )
     )
@@ -375,17 +391,20 @@ def plot_combined_rti(
             for value in snr_times
         ],
         snr_ranges[display_mask],
-        power_ratio_db.T,
+        narrowband_ratio_db.T,
         shading="nearest",
         cmap="plasma",
-        vmin=monitor.THIRTY_MINUTE_POWER_RATIO_MIN_DB,
+        vmin=NARROWBAND_RATIO_MIN_DB,
         vmax=20.0,
     )
     axes[0].set_title(
-        "Power / 30–50 km interval background · full 10-second estimates"
+        "Joint fitted narrowband power / processed broadband noise"
     )
     snr_colorbar = figure.colorbar(snr_image, ax=axes[0], pad=0.01)
-    snr_colorbar.set_label("Power / background (dB)", color="#b7c5d9")
+    snr_colorbar.set_label(
+        "Σ fitted power / broadband noise (dB)",
+        color="#b7c5d9",
+    )
     snr_colorbar.ax.tick_params(colors="#8fa1ba")
 
     doppler_image = axes[1].pcolormesh(
@@ -660,10 +679,12 @@ def main() -> None:
     start = dt.datetime.fromtimestamp(start_unix, tz=dt.timezone.utc)
     end = dt.datetime.fromtimestamp(end_unix, tz=dt.timezone.utc)
 
-    times, ranges, velocity, fit_snr = fit_ten_second_doppler(
+    times, ranges, velocity, fit_snr, fitted_channel_power = (
+        fit_ten_second_doppler(
         reader,
         start_unix,
         end_unix,
+        )
     )
     channel_times, channel_ranges, channel_power = load_channel_power(
         reader,
@@ -679,6 +700,7 @@ def main() -> None:
         channel_times,
         channel_ranges,
         channel_power,
+        fitted_channel_power,
         start,
         end,
     )
@@ -700,6 +722,12 @@ def main() -> None:
             "joint_common_frequency_independent_complex_amplitudes"
         )
         handle.attrs["doppler_channels"] = "ch1,ch2,ch3,ch4"
+        handle.attrs["narrowband_power"] = (
+            "squared_complex_amplitude_of_joint_common_frequency_fit"
+        )
+        handle.attrs["broadband_noise_power"] = (
+            "mean_processed_voltage_power_over_30_to_50_km_and_15_minutes"
+        )
         handle.create_dataset("time_unix", data=times)
         handle.create_dataset("range_km", data=ranges)
         handle.create_dataset(
@@ -712,6 +740,39 @@ def main() -> None:
         handle.create_dataset(
             "sinusoid_snr",
             data=fit_snr,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "fitted_narrowband_power_by_channel",
+            data=fitted_channel_power,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        noise_mask = (
+            (channel_ranges >= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[0])
+            & (channel_ranges <= monitor.THIRTY_MINUTE_NOISE_RANGE_KM[1])
+        )
+        broadband_noise_power = np.nanmean(
+            channel_power[:, :, noise_mask],
+            axis=(0, 2),
+        )
+        handle.create_dataset(
+            "processed_broadband_noise_power_by_channel",
+            data=broadband_noise_power,
+        )
+        handle.create_dataset(
+            "narrowband_to_broadband_noise_ratio",
+            data=np.sum(
+                fitted_channel_power
+                / np.maximum(
+                    broadband_noise_power[None, :, None],
+                    1e-20,
+                ),
+                axis=1,
+            ),
             compression="gzip",
             compression_opts=1,
             shuffle=True,
