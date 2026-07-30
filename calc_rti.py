@@ -1,7 +1,6 @@
 
 
 import numpy as np
-import matplotlib.pyplot as plt
 import digital_rf as drf
 import scipy.constants as sc
 import mf_conf as mc
@@ -40,8 +39,7 @@ def rti(d,
         i0=0,
         tx_ch="ch1",
         n_samples=2_000_000,
-        fmax=20.0,
-        plot=False):
+        fmax=20.0):
     
     lpf   = mc.fir_lowpass_hann(fc=20e3, fs=FS_RAW, num_taps=NUM_TAPS)
     rvec_full = range_vector()
@@ -107,7 +105,7 @@ if __name__ == "__main__":
     i0 = b[1] - 2_000_000 - 100_000    # 2 s from end of data
 
     for ch in ["ch1", "ch2", "ch3", "ch4"]:
-        tvec, rvec, fvec, RTI, RDI = rti(d, ch, i0, plot=True)
+        tvec, rvec, fvec, RTI, RDI = rti(d, ch, i0)
         print(f"{ch}: RTI {RTI.shape}, RDI {RDI.shape}, "
               f"range {rvec[0]:.1f}–{rvec[-1]:.1f} km, "
               f"Doppler {fvec[0]:.2f}–{fvec[-1]:.2f} Hz")

@@ -1,8 +1,11 @@
 
 import numpy as np
 import digital_rf as drf
+import ctypes
+import gc
 import logging
 import os
+import sys
 import time
 
 import mf_conf as mc
@@ -16,6 +19,8 @@ CHANNELS     = ["ch1", "ch2", "ch3", "ch4"]
 SLEEP_S      = 0.5          # poll interval when waiting for new data, seconds
 BACKFILL_LOAD_FRACTION = 0.75
 BACKFILL_CURSOR_FILE = "/data2/metadata/xc_backfill_cursor.txt"
+ALLOCATOR_TRIM_BLOCKS = 30
+PROCESS_RECYCLE_S = 10 * 60
 
 # ── Logging — errors and warnings only, written to file ───────────────────────
 logging.basicConfig(
@@ -41,7 +46,6 @@ def process_block(d, dmw, i0):
             tvec, rvec, fvec, RTI, RDI = crti.rti(
                 d, ch, i0,
                 n_samples=N_SAMPLES,
-                plot=False,
             )
         except Exception as e:
             logging.error("channel %s block %d: %s", ch, i0, e)
@@ -91,6 +95,29 @@ def spare_cpu_available():
     return os.getloadavg()[0] < cpu_count * BACKFILL_LOAD_FRACTION
 
 
+def trim_allocator():
+    """Return freed NumPy/HDF5 arenas to the OS when libc supports it."""
+    gc.collect()
+    try:
+        libc = ctypes.CDLL(None)
+        malloc_trim = libc.malloc_trim
+        malloc_trim.argtypes = [ctypes.c_size_t]
+        malloc_trim.restype = ctypes.c_int
+        malloc_trim(0)
+    except (AttributeError, OSError):
+        pass
+
+
+def recycle_process(reader):
+    """Bound native-library retention by replacing this process in place."""
+    try:
+        reader.close()
+    except Exception:
+        pass
+    trim_allocator()
+    os.execv(sys.executable, [sys.executable, *sys.argv])
+
+
 def latest_complete_block(bounds):
     """Start sample of the newest complete, offset-safe two-second block."""
     return (
@@ -114,9 +141,15 @@ def main():
 
     b = d.get_bounds("ch1")
     backfill_i0 = load_backfill_cursor(dmr, b[0])
-    last_realtime_i0 = None
+    try:
+        last_realtime_i0 = int(dmr.get_bounds()[1])
+    except Exception:
+        last_realtime_i0 = None
+    process_started = time.monotonic()
+    blocks_since_trim = 0
 
     while True:
+        processed_block = False
         b = d.get_bounds("ch1")
         realtime_i0 = latest_complete_block(b)
 
@@ -124,6 +157,7 @@ def main():
         if realtime_i0 > b[0] and realtime_i0 != last_realtime_i0:
             if process_block(d, dmw, realtime_i0):
                 last_realtime_i0 = realtime_i0
+                processed_block = True
             else:
                 logging.error("realtime block %d failed; retrying", realtime_i0)
                 time.sleep(SLEEP_S)
@@ -145,10 +179,20 @@ def main():
         ):
             if not process_block(d, dmw, backfill_i0):
                 logging.error("historical block %d failed; skipping", backfill_i0)
+            else:
+                processed_block = True
             backfill_i0 += N_SAMPLES
             save_backfill_cursor(backfill_i0)
         else:
             time.sleep(SLEEP_S)
+
+        if processed_block:
+            blocks_since_trim += 1
+            if blocks_since_trim >= ALLOCATOR_TRIM_BLOCKS:
+                trim_allocator()
+                blocks_since_trim = 0
+        if time.monotonic() - process_started >= PROCESS_RECYCLE_S:
+            recycle_process(d)
 
 
 if __name__ == "__main__":
