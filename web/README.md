@@ -37,7 +37,7 @@ Doppler and a 101×101 east/north direction-cosine grid. WGS84 geometry restrict
 the search to 50–150 km altitude and at least 20 degrees elevation. Up to
 twelve local interferometric ambiguities within 6 dB of the best result are
 stored for every time-range cell. The displayed velocity is the strongest
-solution and uses a fixed -100 to +100 m/s color scale; noise-only cells are
+solution and uses a fixed -150 to +150 m/s color scale; noise-only cells are
 deliberately retained.
 
 `latest_channel_snr_15m_0_300.png` shows channels 1–4 separately over the
