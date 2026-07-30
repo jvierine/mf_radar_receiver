@@ -316,7 +316,15 @@ def plot_quality(state: dict[str, np.ndarray], output_path: Path) -> None:
     rmse_colorbar.set_label("RMSE", color="#b7c5d9")
     rmse_colorbar.ax.tick_params(colors="#8fa1ba")
 
-    accepted = np.isfinite(state["zonal_wind_ms"]).astype(np.float64)
+    diagnostics_available = np.any(
+        np.isfinite(state["baseline_peak_correlation"]),
+        axis=2,
+    )
+    accepted = np.where(
+        diagnostics_available,
+        np.isfinite(state["zonal_wind_ms"]).astype(np.float64),
+        np.nan,
+    )
     accepted_image = axes[3, 1].pcolormesh(
         times,
         fading_wind.ALTITUDE_KM,
