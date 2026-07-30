@@ -700,7 +700,6 @@ def main() -> None:
         channel_times,
         channel_ranges,
         channel_power,
-        fitted_channel_power,
         start,
         end,
     )
@@ -708,6 +707,7 @@ def main() -> None:
         channel_times,
         channel_ranges,
         channel_power,
+        fitted_channel_power,
         times,
         ranges,
         velocity,
