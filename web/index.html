@@ -213,12 +213,37 @@
           pattern later. The right plot is that peak’s normalized correlation
           coefficient. Every peak is displayed, including low-correlation
           noise. The wind panels accept a cell only when the median of the
-          three peak correlations is at least 0.15 and the full evolving-ellipse
-          correlation fit has normalized RMSE no greater than 0.35.
+          three conditioned peak correlations exceeds the strict threshold;
+          final wind acceptance also requires unique peaks, model agreement,
+          consistent five-minute subwindows, and bounded uncertainty.
         </p>
         <footer>
           <time id="fading_correlation-time">Awaiting plot metadata</time>
-          <span>Three baselines · 70–120 km · no diagnostic masking</span>
+          <span>Three baselines · 50–120 km · no diagnostic masking</span>
+        </footer>
+      </article>
+
+      <article class="plot-card selected-rti-card" data-plot="fading_ccf">
+        <header>
+          <div>
+            <span class="channel-id">CCF curves · latest 15 minutes</span>
+            <h3>Complete three-baseline cross-correlations</h3>
+          </div>
+          <span class="freshness" id="fading_ccf-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="5" aria-label="Open complete fading cross-correlation curves">
+          <img id="fading_ccf-image" src="latest_fading_ccf_diagnostics_15m.png" alt="Complete raw, conditioned, and fitted cross-correlation curves for all three dipole baselines">
+        </button>
+        <p class="plot-method">
+          Each altitude panel shows every lag from −30 to +30 seconds. Faint
+          curves use unfiltered power, solid curves use log-power with temporal
+          band-pass filtering and impulsive-outlier limiting, and dashed curves
+          are the fitted evolving-ellipse model. Vertical marks identify the
+          measured CCF peaks; no curve is hidden when a wind is rejected.
+        </p>
+        <footer>
+          <time id="fading_ccf-time">Awaiting plot metadata</time>
+          <span>Three baselines · 50–120 km · complete curves</span>
         </footer>
       </article>
 
@@ -230,7 +255,7 @@
           </div>
           <span class="freshness" id="fading_wind_48h-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="5" aria-label="Open 48-hour fading-inferred horizontal winds">
+        <button class="plot-button rti-button" type="button" data-plot-index="6" aria-label="Open 48-hour fading-inferred horizontal winds">
           <img id="fading_wind_48h-image" src="latest_fading_wind_48h.png" alt="Zonal and meridional wind estimates over the latest 48 hours">
         </button>
         <p class="plot-method">
@@ -243,7 +268,7 @@
         </p>
         <footer>
           <time id="fading_wind_48h-time">Awaiting plot metadata</time>
-          <span>15-minute integration · 70–120 km</span>
+          <span>15-minute integration · 50–120 km</span>
         </footer>
       </article>
 
@@ -255,7 +280,7 @@
           </div>
           <span class="freshness" id="fading_wind_quality_48h-freshness">—</span>
         </header>
-        <button class="plot-button rti-button" type="button" data-plot-index="6" aria-label="Open 48-hour fading-wind quality panels">
+        <button class="plot-button rti-button" type="button" data-plot-index="7" aria-label="Open 48-hour fading-wind quality panels">
           <img id="fading_wind_quality_48h-image" src="latest_fading_wind_quality_48h.png" alt="Separate baseline delays, peak correlations, fit residual, and wind acceptance panels">
         </button>
         <p class="plot-method">
@@ -269,6 +294,31 @@
         <footer>
           <time id="fading_wind_quality_48h-time">Awaiting plot metadata</time>
           <span>Eight quality panels · unmasked diagnostics</span>
+        </footer>
+      </article>
+
+      <article class="plot-card selected-rti-card" data-plot="fading_wind_validation_48h">
+        <header>
+          <div>
+            <span class="channel-id">FCA validation · latest 48 hours</span>
+            <h3>Independent automatic rejection tests</h3>
+          </div>
+          <span class="freshness" id="fading_wind_validation_48h-freshness">—</span>
+        </header>
+        <button class="plot-button rti-button" type="button" data-plot-index="8" aria-label="Open strict FCA validation tests">
+          <img id="fading_wind_validation_48h-image" src="latest_fading_wind_validation_48h.png" alt="FCA common-mode, CCF peak, model mismatch, subwindow agreement, bootstrap uncertainty, and final acceptance panels">
+        </button>
+        <p class="plot-method">
+          These panels expose every gate in the revised estimator: common-mode
+          fraction, weakest baseline correlation, weakest peak prominence,
+          observed-versus-model peak mismatch, number of valid five-minute
+          subwindows, component spread, bootstrap uncertainty, and the final
+          accepted/rejected result. Rejected candidate velocities are never
+          presented as neutral wind.
+        </p>
+        <footer>
+          <time id="fading_wind_validation_48h-time">Awaiting plot metadata</time>
+          <span>Ten independent validation panels · 50–120 km</span>
         </footer>
       </article>
 

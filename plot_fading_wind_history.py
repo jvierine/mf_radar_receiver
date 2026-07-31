@@ -26,12 +26,13 @@ import mf_conf as mc
 HISTORY_HOURS = 48
 WINDOW_S = 15 * 60
 CADENCE_S = 15 * 60
-PROCESSING_VERSION = 1
+PROCESSING_VERSION = 2
 DISPLAY_LIMIT_MS = 150.0
 DEFAULT_STATE = Path("/data2/plots/monitor/fading_wind_48h_state.h5")
 DEFAULT_OUTPUT_DIR = Path("/data2/plots/monitor")
 WIND_PLOT_NAME = "latest_fading_wind_48h.png"
 QUALITY_PLOT_NAME = "latest_fading_wind_quality_48h.png"
+VALIDATION_PLOT_NAME = "latest_fading_wind_validation_48h.png"
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,8 +56,21 @@ def empty_state(times: np.ndarray) -> dict[str, np.ndarray]:
         "time_unix": times,
         "zonal_wind_ms": np.full(shape, np.nan),
         "meridional_wind_ms": np.full(shape, np.nan),
+        "candidate_zonal_wind_ms": np.full(shape, np.nan),
+        "candidate_meridional_wind_ms": np.full(shape, np.nan),
         "wind_peak_correlation": np.full(shape, np.nan),
         "wind_fit_rmse": np.full(shape, np.nan),
+        "wind_fit_condition": np.full(shape, np.nan),
+        "common_mode_fraction": np.full(shape, np.nan),
+        "minimum_peak_prominence": np.full(shape, np.nan),
+        "minimum_peak_uniqueness": np.full(shape, np.nan),
+        "maximum_model_peak_error_s": np.full(shape, np.nan),
+        "valid_subwindow_count": np.full(shape, np.nan),
+        "subwindow_component_spread_ms": np.full(
+            (*shape, 2),
+            np.nan,
+        ),
+        "bootstrap_uncertainty_ms": np.full((*shape, 2), np.nan),
         "baseline_delay_s": np.full(baseline_shape, np.nan),
         "baseline_peak_correlation": np.full(baseline_shape, np.nan),
     }
@@ -107,6 +121,33 @@ def atomic_state(path: Path, state: dict[str, np.ndarray]) -> None:
         handle.attrs["delay_sign"] = (
             "positive_when_second_named_antenna_sees_pattern_later"
         )
+        handle.attrs["minimum_baseline_correlation"] = (
+            fading_wind.MIN_BASELINE_CORRELATION
+        )
+        handle.attrs["minimum_peak_prominence"] = (
+            fading_wind.MIN_PEAK_PROMINENCE
+        )
+        handle.attrs["minimum_peak_uniqueness"] = (
+            fading_wind.MIN_PEAK_UNIQUENESS
+        )
+        handle.attrs["maximum_model_peak_error_seconds"] = (
+            fading_wind.MAX_MODEL_PEAK_ERROR_S
+        )
+        handle.attrs["maximum_neutral_wind_speed_ms"] = (
+            fading_wind.MAX_NEUTRAL_WIND_SPEED_MS
+        )
+        handle.attrs["maximum_subwindow_component_spread_ms"] = (
+            fading_wind.MAX_SUBWINDOW_COMPONENT_SPREAD_MS
+        )
+        handle.attrs["maximum_bootstrap_uncertainty_ms"] = (
+            fading_wind.MAX_BOOTSTRAP_UNCERTAINTY_MS
+        )
+        handle.attrs["maximum_common_mode_fraction"] = (
+            fading_wind.MAX_COMMON_MODE_FRACTION
+        )
+        handle.attrs["maximum_scaled_fit_condition"] = (
+            fading_wind.MAX_SCALED_FIT_CONDITION
+        )
         handle.create_dataset("time_unix", data=state["time_unix"])
         handle.create_dataset(
             "altitude_km",
@@ -143,11 +184,51 @@ def estimate_window(reader, center_unix: int) -> dict[str, np.ndarray]:
     result = {
         "zonal_wind_ms": np.full(len(fading_wind.ALTITUDE_KM), np.nan),
         "meridional_wind_ms": np.full(len(fading_wind.ALTITUDE_KM), np.nan),
+        "candidate_zonal_wind_ms": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "candidate_meridional_wind_ms": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
         "wind_peak_correlation": np.full(
             len(fading_wind.ALTITUDE_KM),
             np.nan,
         ),
         "wind_fit_rmse": np.full(len(fading_wind.ALTITUDE_KM), np.nan),
+        "wind_fit_condition": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "common_mode_fraction": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "minimum_peak_prominence": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "minimum_peak_uniqueness": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "maximum_model_peak_error_s": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "valid_subwindow_count": np.full(
+            len(fading_wind.ALTITUDE_KM),
+            np.nan,
+        ),
+        "subwindow_component_spread_ms": np.full(
+            (len(fading_wind.ALTITUDE_KM), 2),
+            np.nan,
+        ),
+        "bootstrap_uncertainty_ms": np.full(
+            (len(fading_wind.ALTITUDE_KM), 2),
+            np.nan,
+        ),
         "baseline_delay_s": np.full(
             (len(fading_wind.ALTITUDE_KM), len(fading_wind.PAIR_INDICES)),
             np.nan,
@@ -168,14 +249,47 @@ def estimate_window(reader, center_unix: int) -> dict[str, np.ndarray]:
             values,
             sample_interval_s,
         )
-        (
-            result["zonal_wind_ms"][altitude_index],
-            result["meridional_wind_ms"][altitude_index],
-            result["wind_peak_correlation"][altitude_index],
-            result["wind_fit_rmse"][altitude_index],
-        ) = fading_wind.fit_fading_window(
+        fit = fading_wind.fit_robust_fading_window(
             values,
             sample_interval_s,
+        )
+        result["zonal_wind_ms"][altitude_index] = fit["zonal_wind_ms"]
+        result["meridional_wind_ms"][altitude_index] = (
+            fit["meridional_wind_ms"]
+        )
+        result["candidate_zonal_wind_ms"][altitude_index] = (
+            fit["candidate_zonal_wind_ms"]
+        )
+        result["candidate_meridional_wind_ms"][altitude_index] = (
+            fit["candidate_meridional_wind_ms"]
+        )
+        result["wind_peak_correlation"][altitude_index] = np.median(
+            fit["peak_correlation"]
+        )
+        result["wind_fit_rmse"][altitude_index] = fit["fit_rmse"]
+        result["wind_fit_condition"][altitude_index] = (
+            fit["fit_condition"]
+        )
+        result["common_mode_fraction"][altitude_index] = (
+            fit["common_mode_fraction"]
+        )
+        result["minimum_peak_prominence"][altitude_index] = np.min(
+            fit["peak_prominence"]
+        )
+        result["minimum_peak_uniqueness"][altitude_index] = np.min(
+            fit["peak_uniqueness"]
+        )
+        result["maximum_model_peak_error_s"][altitude_index] = np.max(
+            fit["model_peak_error_s"]
+        )
+        result["valid_subwindow_count"][altitude_index] = (
+            fit["valid_subwindow_count"]
+        )
+        result["subwindow_component_spread_ms"][altitude_index] = (
+            fit["subwindow_component_spread_ms"]
+        )
+        result["bootstrap_uncertainty_ms"][altitude_index] = (
+            fit["bootstrap_uncertainty_ms"]
         )
     return result
 
@@ -364,6 +478,170 @@ def plot_quality(state: dict[str, np.ndarray], output_path: Path) -> None:
     os.replace(temporary, output_path)
 
 
+def plot_validation(state: dict[str, np.ndarray], output_path: Path) -> None:
+    """Plot the independent tests that decide whether a wind is retained."""
+    def reduce_components(value: np.ndarray, reducer) -> np.ndarray:
+        result = np.full(value.shape[:2], np.nan)
+        available = np.any(np.isfinite(value), axis=2)
+        result[available] = reducer(value[available], axis=1)
+        return result
+
+    times = [
+        dt.datetime.fromtimestamp(value, tz=dt.timezone.utc)
+        for value in state["time_unix"]
+    ]
+    panels = (
+        (
+            "common_mode_fraction",
+            "Instantaneous common-mode fraction",
+            "viridis",
+            1.0 / 3.0,
+            1.0,
+            "Fraction",
+        ),
+        (
+            "log10_fit_condition",
+            "Scaled velocity-Jacobian condition number",
+            "magma",
+            0.0,
+            5.0,
+            "log10 condition",
+        ),
+        (
+            "minimum_baseline_correlation",
+            "Minimum of three CCF peaks",
+            "viridis",
+            0.0,
+            1.0,
+            "Correlation",
+        ),
+        (
+            "minimum_peak_prominence",
+            "Minimum CCF peak prominence",
+            "viridis",
+            0.0,
+            0.5,
+            "Prominence",
+        ),
+        (
+            "minimum_peak_uniqueness",
+            "Minimum CCF peak uniqueness",
+            "viridis",
+            0.0,
+            0.3,
+            "Peak minus secondary",
+        ),
+        (
+            "maximum_model_peak_error_s",
+            "Maximum observed/model peak mismatch",
+            "magma",
+            0.0,
+            5.0,
+            "Mismatch (s)",
+        ),
+        (
+            "valid_subwindow_count",
+            "Accepted five-minute subwindows",
+            "viridis",
+            0.0,
+            float(fading_wind.SUBWINDOW_COUNT),
+            "Count",
+        ),
+        (
+            "maximum_subwindow_spread_ms",
+            "Maximum component spread across subwindows",
+            "magma",
+            0.0,
+            100.0,
+            "Spread (m/s)",
+        ),
+        (
+            "maximum_bootstrap_uncertainty_ms",
+            "Maximum bootstrap component uncertainty",
+            "magma",
+            0.0,
+            50.0,
+            "Uncertainty (m/s)",
+        ),
+        (
+            "accepted",
+            "Final automatic acceptance",
+            "viridis",
+            0.0,
+            1.0,
+            "Decision",
+        ),
+    )
+    derived = {
+        "log10_fit_condition": np.log10(
+            np.where(
+                state["wind_fit_condition"] > 0.0,
+                state["wind_fit_condition"],
+                np.nan,
+            )
+        ),
+        "minimum_baseline_correlation": reduce_components(
+            state["baseline_peak_correlation"],
+            np.nanmin,
+        ),
+        "maximum_subwindow_spread_ms": reduce_components(
+            state["subwindow_component_spread_ms"],
+            np.nanmax,
+        ),
+        "maximum_bootstrap_uncertainty_ms": reduce_components(
+            state["bootstrap_uncertainty_ms"],
+            np.nanmax,
+        ),
+        "accepted": np.where(
+            np.any(np.isfinite(state["baseline_peak_correlation"]), axis=2),
+            np.isfinite(state["zonal_wind_ms"]).astype(np.float64),
+            np.nan,
+        ),
+    }
+    figure, axes = plt.subplots(
+        5,
+        2,
+        figsize=(17, 20),
+        sharex=True,
+        sharey=True,
+        facecolor="#070b14",
+        constrained_layout=True,
+    )
+    for axis, (name, title, cmap, lower, upper, label) in zip(
+        axes.ravel(),
+        panels,
+    ):
+        value = derived[name] if name in derived else state[name]
+        image = axis.pcolormesh(
+            times,
+            fading_wind.ALTITUDE_KM,
+            value.T,
+            shading="nearest",
+            cmap=cmap,
+            vmin=lower,
+            vmax=upper,
+        )
+        axis.set_title(title)
+        colorbar = figure.colorbar(image, ax=axis, pad=0.01)
+        colorbar.set_label(label, color="#b7c5d9")
+        colorbar.ax.tick_params(colors="#8fa1ba")
+        style_axis(axis)
+        axis.set_ylabel("Altitude (km)")
+    for axis in axes[-1]:
+        axis.set_xlabel("Window center (UTC)", color="#b7c5d9")
+        configure_time_axis(axis)
+    figure.suptitle(
+        "Ramfjordmoen MF radar · strict FCA validation · latest 48 hours",
+        color="#edf4ff",
+        fontsize=18,
+        weight="semibold",
+    )
+    temporary = output_path.with_suffix(".tmp.png")
+    figure.savefig(temporary, dpi=150, facecolor=figure.get_facecolor())
+    plt.close(figure)
+    os.replace(temporary, output_path)
+
+
 def _update_history_unlocked(
     reader,
     end_unix: float,
@@ -411,6 +689,7 @@ def _update_history_unlocked(
     atomic_state(state_path, state)
     plot_winds(state, output_dir / WIND_PLOT_NAME)
     plot_quality(state, output_dir / QUALITY_PLOT_NAME)
+    plot_validation(state, output_dir / VALIDATION_PLOT_NAME)
     print(
         f"Fading-wind history: calculated {added}, "
         f"unavailable {unavailable}, "

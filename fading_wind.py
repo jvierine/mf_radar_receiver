@@ -19,15 +19,27 @@ ANTENNA_EN_M = np.asarray(
     dtype=np.float64,
 )
 PAIR_INDICES = ((0, 1), (0, 2), (1, 2))
-ALTITUDE_KM = np.arange(70.0, 125.0, 5.0)
+ALTITUDE_KM = np.arange(50.0, 125.0, 5.0)
 ALTITUDE_HALF_WIDTH_KM = 2.0
 WINDOW_S = 5 * 60
 OUTPUT_CADENCE_S = 60
 MAX_LAG_S = 30.0
-MIN_PEAK_CORRELATION = 0.15
-MAX_FIT_RMSE = 0.35
-MAX_PATTERN_SPEED_MS = 600.0
+MIN_BASELINE_CORRELATION = 0.30
+MIN_PEAK_PROMINENCE = 0.08
+MIN_PEAK_UNIQUENESS = 0.04
+MAX_FIT_RMSE = 0.18
+MAX_MODEL_PEAK_ERROR_S = 1.0
+MAX_NEUTRAL_WIND_SPEED_MS = 120.0
+MAX_PATTERN_SPEED_MS = 2.0 * MAX_NEUTRAL_WIND_SPEED_MS
 CORRELATION_SAMPLE_RATE_HZ = 4.0
+TEMPORAL_BANDPASS_HZ = (1.0 / 120.0, 1.5)
+SUBWINDOW_COUNT = 3
+MIN_VALID_SUBWINDOWS = 2
+MAX_SUBWINDOW_COMPONENT_SPREAD_MS = 50.0
+MAX_BOOTSTRAP_UNCERTAINTY_MS = 25.0
+BOOTSTRAP_REPLICATES = 500
+MAX_COMMON_MODE_FRACTION = 0.85
+MAX_SCALED_FIT_CONDITION = 50.0
 
 
 def _decimate_power(
@@ -73,6 +85,168 @@ def _normalized_correlation(
     return correlation[keep] / np.maximum(overlap, 1), lags
 
 
+def _condition_power(
+    power: np.ndarray,
+    sample_interval_s: float,
+) -> np.ndarray:
+    """Suppress slow common gain changes and impulsive meteor-like outliers."""
+    power = np.asarray(power, dtype=np.float64)
+    floor = np.maximum(
+        np.nanpercentile(power, 1.0, axis=0),
+        np.finfo(np.float64).tiny,
+    )
+    conditioned = np.log(np.maximum(power, floor[None, :]))
+    median = np.nanmedian(conditioned, axis=0)
+    mad = np.nanmedian(np.abs(conditioned - median[None, :]), axis=0)
+    scale = np.maximum(1.4826 * mad, 1e-6)
+    conditioned = np.clip(
+        conditioned,
+        median[None, :] - 8.0 * scale[None, :],
+        median[None, :] + 8.0 * scale[None, :],
+    )
+    sample_rate_hz = 1.0 / sample_interval_s
+    low_hz, high_hz = TEMPORAL_BANDPASS_HZ
+    high_hz = min(high_hz, 0.45 * sample_rate_hz)
+    if low_hz >= high_hz:
+        raise ValueError("correlation sample rate is too low for band-pass")
+    sos = signal.butter(
+        3,
+        (low_hz, high_hz),
+        btype="bandpass",
+        fs=sample_rate_hz,
+        output="sos",
+    )
+    return signal.sosfiltfilt(sos, conditioned, axis=0)
+
+
+def _peak_metrics(
+    correlation: np.ndarray,
+    lag_seconds: np.ndarray,
+) -> dict[str, float]:
+    peak_index = int(np.nanargmax(correlation))
+    fractional_peak = 0.0
+    if 0 < peak_index < len(correlation) - 1:
+        lower = correlation[peak_index - 1]
+        center = correlation[peak_index]
+        upper = correlation[peak_index + 1]
+        denominator = lower - 2.0 * center + upper
+        if abs(denominator) > 1e-12:
+            fractional_peak = float(
+                np.clip(
+                    0.5 * (lower - upper) / denominator,
+                    -1.0,
+                    1.0,
+                )
+            )
+    lag_step_s = float(np.median(np.diff(lag_seconds)))
+    delay_s = float(
+        lag_seconds[peak_index] + fractional_peak * lag_step_s
+    )
+    if 0 < peak_index < len(correlation) - 1:
+        prominence = float(
+            signal.peak_prominences(correlation, [peak_index])[0][0]
+        )
+        width_samples = float(
+            signal.peak_widths(
+                correlation,
+                [peak_index],
+                rel_height=0.5,
+            )[0][0]
+        )
+    else:
+        prominence = 0.0
+        width_samples = 0.0
+    exclusion = max(2, int(np.ceil(max(width_samples, 1.0))))
+    keep = np.ones(len(correlation), dtype=bool)
+    keep[
+        max(0, peak_index - exclusion):
+        min(len(correlation), peak_index + exclusion + 1)
+    ] = False
+    secondary = (
+        float(np.nanmax(correlation[keep]))
+        if np.any(keep)
+        else float(correlation[peak_index])
+    )
+    return {
+        "delay_s": delay_s,
+        "peak": float(correlation[peak_index]),
+        "prominence": prominence,
+        "width_s": width_samples * abs(lag_step_s),
+        "uniqueness": float(correlation[peak_index] - secondary),
+    }
+
+
+def correlation_diagnostics(
+    power: np.ndarray,
+    sample_interval_s: float,
+    *,
+    conditioned: bool = True,
+) -> dict[str, np.ndarray]:
+    """Return full ACF/CCF curves and objective peak diagnostics."""
+    power, sample_interval_s = _decimate_power(
+        np.asarray(power, dtype=np.float64),
+        sample_interval_s,
+    )
+    if conditioned:
+        power = _condition_power(power, sample_interval_s)
+    maximum_lag_samples = int(round(MAX_LAG_S / sample_interval_s))
+    lag_samples = np.arange(
+        -maximum_lag_samples,
+        maximum_lag_samples + 1,
+    )
+    lag_seconds = lag_samples.astype(np.float64) * sample_interval_s
+    cross_correlations = []
+    cross_metrics = []
+    for first, second in PAIR_INDICES:
+        correlation, current_lags = _normalized_correlation(
+            power[:, first],
+            power[:, second],
+            maximum_lag_samples,
+        )
+        if not np.array_equal(current_lags, lag_samples):
+            raise RuntimeError("inconsistent correlation lag grid")
+        cross_correlations.append(correlation)
+        cross_metrics.append(_peak_metrics(correlation, lag_seconds))
+    auto_correlations = [
+        _normalized_correlation(
+            power[:, channel],
+            power[:, channel],
+            maximum_lag_samples,
+        )[0]
+        for channel in range(len(CHANNEL_FIELDS))
+    ]
+    standardized = (
+        power - np.mean(power, axis=0, keepdims=True)
+    ) / np.maximum(np.std(power, axis=0, keepdims=True), 1e-12)
+    eigenvalues = np.linalg.eigvalsh(
+        np.corrcoef(standardized, rowvar=False)
+    )
+    common_mode_fraction = float(
+        np.max(eigenvalues) / np.maximum(np.sum(eigenvalues), 1e-12)
+    )
+    return {
+        "lag_seconds": lag_seconds,
+        "cross_correlations": np.asarray(cross_correlations),
+        "auto_correlations": np.asarray(auto_correlations),
+        "delay_s": np.asarray(
+            [value["delay_s"] for value in cross_metrics]
+        ),
+        "peak_correlation": np.asarray(
+            [value["peak"] for value in cross_metrics]
+        ),
+        "peak_prominence": np.asarray(
+            [value["prominence"] for value in cross_metrics]
+        ),
+        "peak_width_s": np.asarray(
+            [value["width_s"] for value in cross_metrics]
+        ),
+        "peak_uniqueness": np.asarray(
+            [value["uniqueness"] for value in cross_metrics]
+        ),
+        "common_mode_fraction": np.asarray(common_mode_fraction),
+    }
+
+
 def _initial_pattern_velocity(
     correlations: list[np.ndarray],
     lag_seconds: np.ndarray,
@@ -106,83 +280,42 @@ def cross_correlation_delays(
     sample_interval_s: float,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Return sub-sample peak delay and peak coefficient for each baseline."""
-    power, sample_interval_s = _decimate_power(
-        np.asarray(power, dtype=np.float64),
-        sample_interval_s,
+    diagnostics = correlation_diagnostics(power, sample_interval_s)
+    return (
+        diagnostics["delay_s"],
+        diagnostics["peak_correlation"],
     )
-    maximum_lag_samples = int(round(MAX_LAG_S / sample_interval_s))
-    delays_s = np.full(len(PAIR_INDICES), np.nan)
-    peak_correlation = np.full(len(PAIR_INDICES), np.nan)
-    for pair_index, (first, second) in enumerate(PAIR_INDICES):
-        correlation, lag_samples = _normalized_correlation(
-            power[:, first],
-            power[:, second],
-            maximum_lag_samples,
-        )
-        peak = int(np.nanargmax(correlation))
-        fractional_peak = 0.0
-        if 0 < peak < len(correlation) - 1:
-            lower = correlation[peak - 1]
-            center = correlation[peak]
-            upper = correlation[peak + 1]
-            denominator = lower - 2.0 * center + upper
-            if abs(denominator) > 1e-12:
-                fractional_peak = float(
-                    np.clip(
-                        0.5 * (lower - upper) / denominator,
-                        -1.0,
-                        1.0,
-                    )
-                )
-        delays_s[pair_index] = (
-            lag_samples[peak] + fractional_peak
-        ) * sample_interval_s
-        peak_correlation[pair_index] = correlation[peak]
-    return delays_s, peak_correlation
 
 
-def fit_fading_window(
+def fit_fading_window_diagnostics(
     power: np.ndarray,
     sample_interval_s: float,
-) -> tuple[float, float, float, float]:
+) -> dict[str, np.ndarray | float | bool]:
     """
     Fit an evolving elliptical drifting-pattern correlation model.
 
-    Returns zonal wind, meridional wind, median cross-correlation peak, and
-    normalized correlation-fit RMSE. The diffraction-pattern velocity is
-    divided by two to obtain neutral wind.
+    Fit all autocorrelation and cross-correlation curves, then report the
+    fitted neutral wind and the objective checks used to accept or reject it.
     """
     power = np.asarray(power, dtype=np.float64)
     if power.ndim != 2 or power.shape[1] != len(CHANNEL_FIELDS):
         raise ValueError("power must have shape (time, three dipoles)")
-    power, sample_interval_s = _decimate_power(power, sample_interval_s)
-    maximum_lag_samples = int(round(MAX_LAG_S / sample_interval_s))
-    if len(power) < 4 * maximum_lag_samples:
+    diagnostic = correlation_diagnostics(power, sample_interval_s)
+    lag_seconds = diagnostic["lag_seconds"]
+    if len(power) * sample_interval_s < 4 * MAX_LAG_S:
         raise ValueError("fading window is too short")
 
-    cross_correlations = []
-    lag_samples = None
-    for first, second in PAIR_INDICES:
-        correlation, current_lags = _normalized_correlation(
-            power[:, first],
-            power[:, second],
-            maximum_lag_samples,
-        )
-        cross_correlations.append(correlation)
-        if lag_samples is None:
-            lag_samples = current_lags
-    auto_correlations = [
-        _normalized_correlation(
-            power[:, channel],
-            power[:, channel],
-            maximum_lag_samples,
-        )[0]
-        for channel in range(len(CHANNEL_FIELDS))
-    ]
-    lag_seconds = lag_samples.astype(np.float64) * sample_interval_s
+    cross_correlations = diagnostic["cross_correlations"]
+    auto_correlations = diagnostic["auto_correlations"]
     observed = np.asarray(
         [np.mean(auto_correlations, axis=0), *cross_correlations]
     )
+    zero_lag = int(np.argmin(np.abs(lag_seconds)))
+    if 0 < zero_lag < observed.shape[1] - 1:
+        # Receiver noise contributes only at zero lag in the autocorrelation.
+        observed[0, zero_lag] = 0.5 * (
+            observed[0, zero_lag - 1] + observed[0, zero_lag + 1]
+        )
     baselines = np.asarray(
         [
             (0.0, 0.0),
@@ -194,11 +327,11 @@ def fit_fading_window(
         dtype=np.float64,
     )
     initial_velocity = _initial_pattern_velocity(
-        cross_correlations,
+        list(cross_correlations),
         lag_seconds,
     )
 
-    def model_and_residual(parameters: np.ndarray) -> np.ndarray:
+    def model_curves(parameters: np.ndarray) -> np.ndarray:
         velocity = parameters[:2]
         cholesky = np.asarray(
             (
@@ -228,8 +361,14 @@ def fit_fading_window(
                 1.2,
             )
             model_rows.append(amplitude * shape)
-        model = np.asarray(model_rows)
-        return (model - observed).ravel()
+        return np.asarray(model_rows)
+
+    residual_weight = np.sqrt(
+        np.clip(np.abs(observed), 0.05, 1.0)
+    )
+
+    def model_and_residual(parameters: np.ndarray) -> np.ndarray:
+        return ((model_curves(parameters) - observed) * residual_weight).ravel()
 
     fit = optimize.least_squares(
         model_and_residual,
@@ -253,33 +392,159 @@ def fit_fading_window(
     )
     pattern_velocity = fit.x[:2]
     pattern_speed = float(np.linalg.norm(pattern_velocity))
-    peak_correlation = float(
-        np.median([np.nanmax(value) for value in cross_correlations])
-    )
-    peak_delays_s = np.asarray(
+    model = model_curves(fit.x)
+    model_peak_delays_s = np.asarray(
         [
             lag_seconds[int(np.nanargmax(value))]
-            for value in cross_correlations
-        ]
+            for value in model[1:]
+        ],
+    )
+    model_peak_error_s = np.abs(
+        model_peak_delays_s - diagnostic["delay_s"]
     )
     fit_rmse = float(
         np.sqrt(np.mean(model_and_residual(fit.x) ** 2))
     )
+    velocity_jacobian = fit.jac[:, :2]
+    jacobian_scale = np.maximum(
+        np.linalg.norm(velocity_jacobian, axis=0, keepdims=True),
+        1e-12,
+    )
+    singular_values = np.linalg.svd(
+        velocity_jacobian / jacobian_scale,
+        compute_uv=False,
+    )
+    fit_condition = float(
+        singular_values[0] / max(singular_values[-1], 1e-12)
+    )
     valid = (
         fit.success
-        and peak_correlation >= MIN_PEAK_CORRELATION
+        and np.all(
+            diagnostic["peak_correlation"] >= MIN_BASELINE_CORRELATION
+        )
+        and np.all(
+            diagnostic["peak_prominence"] >= MIN_PEAK_PROMINENCE
+        )
+        and np.all(
+            diagnostic["peak_uniqueness"] >= MIN_PEAK_UNIQUENESS
+        )
         and fit_rmse <= MAX_FIT_RMSE
         and pattern_speed <= MAX_PATTERN_SPEED_MS
-        and np.all(np.abs(peak_delays_s) < 0.95 * MAX_LAG_S)
+        and np.all(np.abs(diagnostic["delay_s"]) < 0.95 * MAX_LAG_S)
+        and np.all(model_peak_error_s <= MAX_MODEL_PEAK_ERROR_S)
+        and float(diagnostic["common_mode_fraction"])
+        <= MAX_COMMON_MODE_FRACTION
+        and fit_condition <= MAX_SCALED_FIT_CONDITION
     )
-    if not valid:
-        return np.nan, np.nan, peak_correlation, fit_rmse
+    result = dict(diagnostic)
+    result.update(
+        {
+            "valid": bool(valid),
+            "zonal_wind_ms": (
+                0.5 * float(pattern_velocity[0]) if valid else np.nan
+            ),
+            "meridional_wind_ms": (
+                0.5 * float(pattern_velocity[1]) if valid else np.nan
+            ),
+            "candidate_zonal_wind_ms": 0.5 * float(pattern_velocity[0]),
+            "candidate_meridional_wind_ms": 0.5 * float(pattern_velocity[1]),
+            "fit_rmse": fit_rmse,
+            "fit_condition": fit_condition,
+            "model_curves": model,
+            "model_peak_delays_s": model_peak_delays_s,
+            "model_peak_error_s": model_peak_error_s,
+        }
+    )
+    return result
+
+
+def fit_fading_window(
+    power: np.ndarray,
+    sample_interval_s: float,
+) -> tuple[float, float, float, float]:
+    """Compatibility wrapper returning the accepted fit quantities."""
+    result = fit_fading_window_diagnostics(power, sample_interval_s)
     return (
-        0.5 * float(pattern_velocity[0]),
-        0.5 * float(pattern_velocity[1]),
-        peak_correlation,
-        fit_rmse,
+        float(result["zonal_wind_ms"]),
+        float(result["meridional_wind_ms"]),
+        float(np.median(result["peak_correlation"])),
+        float(result["fit_rmse"]),
     )
+
+
+def fit_robust_fading_window(
+    power: np.ndarray,
+    sample_interval_s: float,
+) -> dict[str, np.ndarray | float | bool | int]:
+    """Validate a 15-minute fit against independent five-minute subwindows."""
+    full = fit_fading_window_diagnostics(power, sample_interval_s)
+    subwindows = np.array_split(np.asarray(power), SUBWINDOW_COUNT, axis=0)
+    subresults = [
+        fit_fading_window_diagnostics(value, sample_interval_s)
+        for value in subwindows
+    ]
+    subwind = np.asarray(
+        [
+            (
+                value["zonal_wind_ms"],
+                value["meridional_wind_ms"],
+            )
+            for value in subresults
+        ],
+        dtype=np.float64,
+    )
+    valid_subwindows = np.all(np.isfinite(subwind), axis=1)
+    valid_values = subwind[valid_subwindows]
+    valid_count = int(np.count_nonzero(valid_subwindows))
+    component_spread = (
+        np.ptp(valid_values, axis=0)
+        if valid_count >= 2
+        else np.full(2, np.nan)
+    )
+    bootstrap_sigma = np.full(2, np.nan)
+    if valid_count >= 2:
+        seed = int(
+            np.round(
+                np.sum(np.abs(valid_values)) * 1000.0
+            )
+        ) % (2**32)
+        generator = np.random.default_rng(seed)
+        bootstrap_index = generator.integers(
+            0,
+            valid_count,
+            size=(BOOTSTRAP_REPLICATES, valid_count),
+        )
+        bootstrap_medians = np.median(
+            valid_values[bootstrap_index],
+            axis=1,
+        )
+        bootstrap_sigma = np.std(bootstrap_medians, axis=0, ddof=1)
+    robust_valid = (
+        bool(full["valid"])
+        and valid_count >= MIN_VALID_SUBWINDOWS
+        and np.all(
+            component_spread <= MAX_SUBWINDOW_COMPONENT_SPREAD_MS
+        )
+        and np.all(
+            bootstrap_sigma <= MAX_BOOTSTRAP_UNCERTAINTY_MS
+        )
+    )
+    result = dict(full)
+    result.update(
+        {
+            "valid": robust_valid,
+            "zonal_wind_ms": (
+                float(full["zonal_wind_ms"]) if robust_valid else np.nan
+            ),
+            "meridional_wind_ms": (
+                float(full["meridional_wind_ms"]) if robust_valid else np.nan
+            ),
+            "valid_subwindow_count": valid_count,
+            "subwindow_component_spread_ms": component_spread,
+            "bootstrap_uncertainty_ms": bootstrap_sigma,
+        }
+    )
+    return result
 
 
 def load_altitude_power(

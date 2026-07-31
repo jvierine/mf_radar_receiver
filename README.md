@@ -49,10 +49,21 @@ shown separately for receiver health but excluded from the joint Doppler fit.
 
 The realtime image also contains zonal and meridional winds from an evolving
 elliptical full-correlation fit to the three dipoles' power-fading patterns.
-Five-minute windows produce one estimate per minute at 70–120 km altitude.
+Five-minute windows produce one estimate per minute at 50–120 km altitude.
 The fitted ground-pattern velocity is divided by two to obtain neutral wind;
 correlation and model-residual thresholds blank unreliable estimates without
 gating the power or Doppler RTIs.
+
+The strict FCA diagnostic extends the analysis grid to 50–120 km. Before
+correlation, each channel's power is log transformed, impulsive outliers are
+limited, and a 1/120–1.5 Hz temporal band-pass suppresses slow common gain and
+ionospheric-power changes. Complete raw, conditioned, and fitted CCF curves are
+published for the latest 15 minutes. A 15-minute wind is retained only when all
+three baselines have strong, unique peaks, the fitted model reproduces their
+delays, the neutral speed is physically bounded, at least two independent
+five-minute subwindows agree, and bootstrap component uncertainties are small.
+The zero-lag autocorrelation sample is interpolated from adjacent lags so
+uncorrelated receiver noise does not bias the fitted pattern scale.
 
 ## Storage layout
 

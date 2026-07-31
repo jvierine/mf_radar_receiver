@@ -7,6 +7,8 @@ import datetime as dt
 import h5py
 import os
 from pathlib import Path
+import subprocess
+import sys
 
 import digital_rf as drf
 import matplotlib
@@ -719,6 +721,13 @@ def main() -> None:
         reader,
         end_unix,
         max_windows=4,
+    )
+    subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).with_name("plot_fading_ccf_diagnostics.py")),
+        ],
+        check=True,
     )
     temporary_data = DATA_FILE.with_suffix(DATA_FILE.suffix + ".tmp")
     with h5py.File(temporary_data, "w") as handle:

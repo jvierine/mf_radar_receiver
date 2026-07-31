@@ -31,6 +31,12 @@ const plots = [
     file: "latest_fading_correlation_diagnostics_15m.png",
   },
   {
+    id: "fading_ccf",
+    title: "Complete fading cross-correlation curves",
+    label: "Raw, conditioned, and fitted CCFs · latest 15 min",
+    file: "latest_fading_ccf_diagnostics_15m.png",
+  },
+  {
     id: "fading_wind_48h",
     title: "Fading-inferred horizontal wind",
     label: "15-minute estimates · latest 48 h",
@@ -41,6 +47,12 @@ const plots = [
     title: "Fading-wind quality panels",
     label: "Delays, correlations, residuals + acceptance · latest 48 h",
     file: "latest_fading_wind_quality_48h.png",
+  },
+  {
+    id: "fading_wind_validation_48h",
+    title: "Strict FCA validation tests",
+    label: "Peak, model, subwindow + bootstrap tests · latest 48 h",
+    file: "latest_fading_wind_validation_48h.png",
   },
 ];
 
